@@ -2,6 +2,7 @@
 
 ## Activate Python virtual environment
 
+1. Install Python 3.13.0 and conda. 
 1. Open the Terminal in VS Code.
 2. Run the following command:
 

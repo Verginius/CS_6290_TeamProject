@@ -23,7 +23,6 @@ Excellent! Now let me create a comprehensive final plan document for your review
 
 ### **👤 Student 1: Spec, Architecture & Core Governance Lead**
 **Primary Skills Needed:** Solidity, system design, technical writing  
-**Time Commitment:** 15-20 hours/week  
 
 **Responsibilities:**
 - Write formal specifications for all system components
@@ -42,7 +41,6 @@ Excellent! Now let me create a comprehensive final plan document for your review
 
 ### **👤 Student 2: Attack Implementation Engineer**
 **Primary Skills Needed:** Solidity, security research, testing  
-**Time Commitment:** 15-20 hours/week  
 
 **Responsibilities:**
 - Research real-world governance attack vectors
@@ -62,7 +60,6 @@ Excellent! Now let me create a comprehensive final plan document for your review
 
 ### **👤 Student 3: Testing & Defense Engineer**
 **Primary Skills Needed:** Solidity testing, security, quality assurance  
-**Time Commitment:** 15-20 hours/week  
 
 **Responsibilities:**
 - Build comprehensive Foundry test suite
@@ -82,7 +79,6 @@ Excellent! Now let me create a comprehensive final plan document for your review
 
 ### **👤 Student 4: Data Analysis & Metrics Engineer**
 **Primary Skills Needed:** Python, data analysis, statistics  
-**Time Commitment:** 15-20 hours/week  
 
 **Responsibilities:**
 - Design comprehensive metrics framework
@@ -102,8 +98,6 @@ Excellent! Now let me create a comprehensive final plan document for your review
 
 ### **👤 Student 5: Front-end Visualization & Dashboard Developer**
 **Primary Skills Needed:** React, TypeScript, data visualization (will learn on the job)  
-**Time Commitment:** 20-25 hours/week (includes learning time)  
-**Learning Path:** React basics → TypeScript → Recharts → Web3 integration  
 
 **Responsibilities:**
 - Build interactive web dashboard using React + TypeScript
