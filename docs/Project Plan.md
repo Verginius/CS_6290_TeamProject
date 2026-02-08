@@ -1213,7 +1213,7 @@ Create 2D chart:
 
 ### **Smart Contract Layer**
 ```yaml
-Language: Solidity ^0.8.20
+Language: Solidity
 Framework: Foundry
   - forge: Compilation and testing
   - anvil: Local Ethereum node
@@ -1227,10 +1227,9 @@ Gas Optimization: Target <2M gas per transaction
 
 ### **Backend Layer**
 ```yaml
-Runtime: Node.js v20+
-Framework: Express.js v4
+Runtime: Node.js
+Framework: Express.js
 Language: TypeScript
-API Style: RESTful
 Data Format: JSON
 Port: 3001 (configurable)
 Key Libraries:
@@ -1243,23 +1242,20 @@ Key Libraries:
 
 ### **Frontend Layer**
 ```yaml
-Framework: React 18+ with TypeScript
+Framework: React with TypeScript
 Build Tool: Vite (fast dev server, optimized builds)
 Styling: Tailwind CSS v3
-UI Components: shadcn/ui (Radix UI primitives)
 Charts: 
-  - Recharts v2 (primary charting library)
-  - D3.js v7 (custom visualizations)
-Web3: ethers.js v6 (blockchain interaction)
+  - Recharts (primary charting library)
+  - D3.js (custom visualizations)
+Web3: ethers.js (blockchain interaction)
 State: Zustand (lightweight state management)
-Routing: React Router v6
-Icons: lucide-react
 Port: 5173 (Vite default)
 ```
 
 ### **Analysis Layer**
 ```yaml
-Language: Python 3.10+
+Language: Python 3.13
 Key Libraries:
   - pandas: Data manipulation
   - numpy: Numerical computations

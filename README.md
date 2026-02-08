@@ -20,7 +20,7 @@ e.g. E:\CityU CS\CS 6290\CS_6290_TeamProject\.venv\Scripts\Activate.ps1
 
 ```Powershell
 
-npm install recharts d3 ethers;
+npm install;
 npm run dev
 
 ```
