@@ -1,40 +1,62 @@
 export interface EconomicAnalysisData {
   attackCost: {
-    total: string; // ETH
+    total: string;      // ETH
+    totalUSD: string;   // USD
     breakdown: {
-      flashloanFee: string;
-      gasCost: string;
-      slippage: string;
-      other: string;
+      flashloanFee: string;  // ETH
+      gasCost: string;       // ETH
+      slippage: string;      // ETH
+      other: string;         // ETH
     };
-    inUSD: string;
+    percentages: {
+      flashloanFee: number;  // 百分比
+      gasCost: number;
+      slippage: number;
+      other: number;
+    };
   };
+  
   roi: {
-    targetFunds: string;
-    expectedProfit: string;
-    percentage: number;
-    breakEvenPoint: string;
-    safetyMargin: number; // 百分比
+    targetFunds: string;     // ETH
+    expectedProfit: string;  // ETH
+    percentage: number;      // 百分比
+    breakEvenPoint: string;  // ETH
+    safetyMargin: number;    // 百分比
+    paybackPeriod: string;   // 区块数/天数
   };
+  
   sensitivityAnalysis: {
     tokenPrice: {
-      base: number;
-      impactOnSuccess: number; // 百分比变化
+      base: number;         // USD
+      range: number[];      // [-20%, -10%, 0, +10%, +20%]
+      impactOnSuccess: number[]; // 对应的成功率变化
     };
     gasPrice: {
-      base: number;
-      impactOnCost: number;
+      base: number;         // gwei
+      range: number[];
+      impactOnCost: number[];    // 成本变化百分比
     };
     slippage: {
-      base: number;
-      impactOnSuccess: number;
+      base: number;         // 百分比
+      range: number[];
+      impactOnSuccess: number[];
     };
   };
+  
   defenseInvestment: Array<{
     measure: string;
-    monthlyCost: string;
-    monthlySavings: string;
-    roi: number;
-    paybackPeriod: string; // 天
+    monthlyCost: string;     // ETH
+    monthlySavings: string;  // ETH
+    roi: number;            // 百分比
+    paybackPeriod: string;  // 天
+    recommended: boolean;
   }>;
+  
+  marketConditions: {
+    ethPrice: number;       // USD
+    gasPrice: number;       // gwei
+    tokenPrice: number;     // USD
+    liquidityDepth: number; // ETH
+    timestamp: string;
+  };
 }

@@ -1,5 +1,9 @@
+export type AttackStage = 'preparation' | 'flashloan' | 'proposal' | 'voting' | 'execution' | 'completed';
+export type LogType = 'info' | 'success' | 'warning' | 'error';
+export type NodeType = 'wallet' | 'protocol' | 'contract';
+
 export interface AttackSimulationData {
-  stage: 'preparation' | 'flashloan' | 'proposal' | 'voting' | 'execution';
+  stage: AttackStage;
   progress: number; // 0-100
   metrics: {
     fundsTransferred: string;
@@ -9,7 +13,7 @@ export interface AttackSimulationData {
   };
   nodes: Array<{
     id: string;
-    type: 'wallet' | 'protocol' | 'contract';
+    type: NodeType;
     label: string;
     balance: string;
   }>;
@@ -21,8 +25,16 @@ export interface AttackSimulationData {
   }>;
   logs: Array<{
     timestamp: string;
-    type: 'info' | 'success' | 'warning' | 'error';
+    type: LogType;
     message: string;
     txHash?: string;
   }>;
+}
+
+export interface AttackConfig {
+  attackType: 'flashloan' | 'sybil' | 'bribery' | 'combined';
+  targetContract: string;
+  initialFunds: string;
+  flashloanSource: 'aave' | 'uniswap' | 'balancer';
+  loanAmount: string;
 }
