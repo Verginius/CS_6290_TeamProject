@@ -1,4 +1,4 @@
-# Governance Attack Simulation UI Design System
+# Governance Attack Simulation UI Design Features
 
 ## Color System
 
