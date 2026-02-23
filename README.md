@@ -60,3 +60,14 @@ curl -L https://foundry.paradigm.xyz | bash
 foundryup
 
 ```
+
+### Deploy the Contract
+
+1. Running following command in GitBash:
+
+``` Powershell
+
+forge script script/Counter.s.sol
+
+```
+The contract will be deployed to the local Anvil node or simulated environment by default. If deployment to the testnet is required, please add the --rpc-url <URL> and --private-key <KEY> parameters.
