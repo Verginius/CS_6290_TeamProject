@@ -55,13 +55,7 @@ contract DeployGovernance is Script {
 
         // 3. Deploy Governor
         governor = new GovernorBase(
-            "CityU Governor",
-            token,
-            timelock,
-            VOTING_DELAY,
-            VOTING_PERIOD,
-            PROPOSAL_THRESHOLD,
-            QUORUM_PERCENTAGE
+            "CityU Governor", token, timelock, VOTING_DELAY, VOTING_PERIOD, PROPOSAL_THRESHOLD, QUORUM_PERCENTAGE
         );
         console.log("Governor deployed at:", address(governor));
 
