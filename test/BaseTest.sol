@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test} from "forge-std/Test.sol";
-import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
-import {Timelock} from "../src/governance/Timelock.sol";
-import {GovernorBase} from "../src/governance/GovernorBase.sol";
+import { Test } from "forge-std/Test.sol";
+import { GovernanceToken } from "../src/governance/GovernanceToken.sol";
+import { Timelock } from "../src/governance/Timelock.sol";
+import { GovernorBase } from "../src/governance/GovernorBase.sol";
 
 contract BaseTest is Test {
     GovernanceToken public token;
