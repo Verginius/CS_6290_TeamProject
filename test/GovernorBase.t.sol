@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { BaseTest } from "./BaseTest.sol";
-import { IGovernor } from "@openzeppelin/contracts/governance/IGovernor.sol";
+import {BaseTest} from "./BaseTest.sol";
+import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 
 contract GovernorBaseTest is BaseTest {
     function setUp() public override {
