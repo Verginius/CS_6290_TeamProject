@@ -21,7 +21,7 @@ contract BaseTest is Test {
     uint48 public constant VOTING_DELAY = 1 days; // 7200 blocks assuming 12s block time, usually expressed in blocks or seconds depending on clock mode. OpenZeppelin Governor usually uses Clock (block number or timestamp).
     // GovernorSettings uses uint48 for votingDelay and uint32 for votingPeriod.
     // Default OpenZeppelin Governor uses block number (IVotes).
-    
+
     // Let's use smaller values for testing
     uint48 public constant TEST_VOTING_DELAY = 10; // blocks
     uint32 public constant TEST_VOTING_PERIOD = 100; // blocks
@@ -32,7 +32,7 @@ contract BaseTest is Test {
         // 1. Deploy Governance Token
         vm.startPrank(admin);
         token = new GovernanceToken("Governance Token", "GOV", admin, INITIAL_SUPPLY);
-        
+
         // 2. Deploy Timelock
         address[] memory proposers = new address[](0);
         address[] memory executors = new address[](0);
@@ -69,7 +69,7 @@ contract BaseTest is Test {
         // Users verify delegation
         vm.prank(user1);
         token.delegate(user1);
-        
+
         vm.prank(user2);
         token.delegate(user2);
 

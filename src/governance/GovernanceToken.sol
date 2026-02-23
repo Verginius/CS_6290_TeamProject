@@ -17,12 +17,11 @@ contract GovernanceToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
      * @param initialOwner The address that will own the initial supply and the contract.
      * @param initialSupply The amount of tokens to mint to the initial owner.
      */
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        address initialOwner,
-        uint256 initialSupply
-    ) ERC20(name_, symbol_) ERC20Permit(name_) Ownable(initialOwner) {
+    constructor(string memory name_, string memory symbol_, address initialOwner, uint256 initialSupply)
+        ERC20(name_, symbol_)
+        ERC20Permit(name_)
+        Ownable(initialOwner)
+    {
         require(initialOwner != address(0), "invalid owner");
         require(initialSupply <= MAX_SUPPLY, "max supply exceeded");
 
@@ -54,11 +53,7 @@ contract GovernanceToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
      * @param to The address receiving the balance.
      * @param value The amount of tokens being transferred.
      */
-    function _update(
-        address from,
-        address to,
-        uint256 value
-    ) internal override(ERC20, ERC20Votes) {
+    function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Votes) {
         super._update(from, to, value);
     }
 

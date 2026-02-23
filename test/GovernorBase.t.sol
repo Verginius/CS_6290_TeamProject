@@ -25,30 +25,30 @@ contract GovernorBaseTest is BaseTest {
 
     function testCreateProposal() public {
         vm.startPrank(user1);
-        
+
         address[] memory targets = new address[](1);
         targets[0] = address(token);
-        
+
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
-        
+
         bytes[] memory calldatas = new bytes[](1);
         // Proposal to mint tokens
         calldatas[0] = abi.encodeWithSignature("mint(address,uint256)", user1, 100e18);
-        
+
         string memory description = "Proposal #1: Mint tokens";
-        
+
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
-        
+
         // Use IGovernor.ProposalState enum (Pending = 0)
         assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Pending));
-        
+
         vm.stopPrank();
     }
 
     function testVotingFlow() public {
         vm.startPrank(user1);
-        
+
         address[] memory targets = new address[](1);
         targets[0] = address(0); // Dummy target
         uint256[] memory values = new uint256[](1);
@@ -56,19 +56,19 @@ contract GovernorBaseTest is BaseTest {
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = "";
         string memory description = "Proposal #2: Standard Vote";
-        
+
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
-        
+
         // Wait for voting delay
         vm.roll(block.number + TEST_VOTING_DELAY + 1);
-        
+
         assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Active));
-        
+
         // Cast vote
         // Support: 0 = Against, 1 = For, 2 = Abstain
         governor.castVote(proposalId, 1);
         vm.stopPrank();
-        
+
         vm.prank(user2);
         governor.castVote(proposalId, 1);
 
@@ -80,7 +80,7 @@ contract GovernorBaseTest is BaseTest {
 
         // Wait for voting period to end
         vm.roll(block.number + TEST_VOTING_PERIOD + 1);
-        
+
         assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Succeeded));
     }
 }
