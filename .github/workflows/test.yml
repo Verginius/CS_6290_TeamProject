@@ -13,7 +13,7 @@ env:
 jobs:
   check:
     name: Foundry project
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
