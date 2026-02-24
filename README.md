@@ -43,9 +43,9 @@ npm run dev
 
 ### Build Foundry environment
 
-referance: https://www.getfoundry.sh/introduction/installation
+reference: https://www.getfoundry.sh/introduction/installation
 
-1. Install Foundry by running following command in GitBash:
+1. Install Foundry by running the following command in GitBash:
 
 ``` Powershell
 
@@ -63,11 +63,14 @@ foundryup
 
 ### Deploy the Contract
 
-1. Running following command in GitBash:
+1. Run the following command in GitBash:
 
 ``` Powershell
 
 forge script script/Counter.s.sol
 
 ```
-The contract will be deployed to the local Anvil node or simulated environment by default. If deployment to the testnet is required, please add the --rpc-url <URL> and --private-key <KEY> parameters.
+
+The contract will be deployed to the local Anvil node or simulated environment by default.
+
+If deployment to the testnet is required, please add the `--rpc-url <URL>` and `--private-key <KEY>` parameters.

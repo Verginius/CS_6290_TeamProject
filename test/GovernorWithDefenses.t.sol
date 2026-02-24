@@ -324,8 +324,9 @@ contract GovernorWithDefensesTest is Test {
         uint256 proposalId = _propose();
         _advanceToActive(proposalId);
 
-        // Only user3 votes For with USER_TOKENS (10 000) < quorumVotes (5 000).
-        // Wait — quorum is 5 000 tokens. user3 has 10 000, so that passes quorum.
+        // Only user3 votes For with USER_TOKENS (10 000) < quorumVotes (10 000).
+        // Wait — quorum is 10 000 tokens (TEST_QUORUM_BPS=1000 bps = 10% of 100 000 supply).
+        // user3 has exactly 10 000, so that meets quorum.
         // Let's test with a smaller vote: cast 0-weight attacker vote only.
         // Actually, let's set up a separate proposal with only the attacker voting
         // (0 weight) to confirm Defeated.

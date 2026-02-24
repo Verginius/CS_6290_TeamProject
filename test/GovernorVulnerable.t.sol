@@ -568,6 +568,11 @@ contract GovernorVulnerableTest is Test {
 
         bytes32 descriptionHash = keccak256(bytes("Reentrancy proposal"));
 
+        // Wire up the reentrant target with the exact call data it will replay
+        // inside maliciousAction().  Without this the stored arrays are empty
+        // and the re-entry attempt silently calls execute() with no targets.
+        reentrant.setAttack(targets, values, calldatas, descriptionHash);
+
         // Propose
         vm.prank(user1);
         governor.propose(targets, values, calldatas, "Reentrancy proposal");
