@@ -85,8 +85,10 @@ contract GovernorWithDefensesTest is Test {
     uint256 public constant MIN_DELAY = 1 days;
     uint256 public constant TEST_VOTING_DELAY = 10; // blocks
     uint256 public constant TEST_VOTING_PERIOD = 100; // blocks
-    uint256 public constant TEST_PROPOSAL_THRESHOLD = 1e18; // 1 token
-    uint256 public constant TEST_QUORUM_VOTES = 5_000e18; // 5 000 tokens
+    /// @dev 1 % of total supply = 1 000 tokens threshold to propose.
+    uint256 public constant TEST_PROPOSAL_THRESHOLD_BPS = 100;
+    /// @dev 10 % of total supply = 10 000 tokens quorum (base).
+    uint256 public constant TEST_QUORUM_BPS = 1000;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Setup
@@ -110,8 +112,8 @@ contract GovernorWithDefensesTest is Test {
             timelock,
             TEST_VOTING_DELAY,
             TEST_VOTING_PERIOD,
-            TEST_PROPOSAL_THRESHOLD,
-            TEST_QUORUM_VOTES
+            TEST_PROPOSAL_THRESHOLD_BPS,
+            TEST_QUORUM_BPS
         );
 
         // 4. Wire Timelock roles.
@@ -193,17 +195,9 @@ contract GovernorWithDefensesTest is Test {
         vm.roll(voteEnd + 1);
     }
 
-    /// @dev Queues a succeeded proposal, returns the ETA.
-    function _queueProposal(
-        uint256 /* proposalId */
-    )
-        internal
-        returns (uint256 eta)
-    {
-        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas,) = _buildNoOpProposal();
-        bytes32 descriptionHash = keccak256(bytes("Proposal: no-op"));
-
-        governor.queue(targets, values, calldatas, descriptionHash);
+    /// @dev Queues a succeeded proposal by proposalId, returns the ETA.
+    function _queueProposal(uint256 proposalId) internal returns (uint256 eta) {
+        governor.queue(proposalId);
         eta = block.timestamp + MIN_DELAY;
     }
 
@@ -216,8 +210,12 @@ contract GovernorWithDefensesTest is Test {
         assertEq(governor.name(), "DAO Governor (Defended)");
         assertEq(governor.votingDelay(), TEST_VOTING_DELAY);
         assertEq(governor.votingPeriod(), TEST_VOTING_PERIOD);
-        assertEq(governor.proposalThreshold(), TEST_PROPOSAL_THRESHOLD);
-        assertEq(governor.quorumVotes(), TEST_QUORUM_VOTES);
+        // BPS storage values.
+        assertEq(governor.proposalThresholdBps(), TEST_PROPOSAL_THRESHOLD_BPS);
+        assertEq(governor.quorumBps(), TEST_QUORUM_BPS);
+        // Derived absolute values (no participation history yet, falls back to quorumBps).
+        assertEq(governor.proposalThreshold(), INITIAL_SUPPLY * TEST_PROPOSAL_THRESHOLD_BPS / 10_000);
+        assertEq(governor.quorumVotes(), INITIAL_SUPPLY * TEST_QUORUM_BPS / 10_000);
         assertEq(address(governor.TOKEN()), address(token));
         assertEq(address(governor.TIMELOCK()), address(timelock));
     }
@@ -406,10 +404,7 @@ contract GovernorWithDefensesTest is Test {
         // Fast-forward past the timelock delay.
         vm.warp(block.timestamp + MIN_DELAY + 1);
 
-        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas,) = _buildNoOpProposal();
-        bytes32 descriptionHash = keccak256(bytes("Proposal: no-op"));
-
-        governor.execute(targets, values, calldatas, descriptionHash);
+        governor.execute(proposalId);
 
         assertEq(
             uint256(governor.state(proposalId)),
@@ -426,11 +421,8 @@ contract GovernorWithDefensesTest is Test {
         _advancePastVoteEnd(proposalId);
 
         // proposal is Succeeded but NOT Queued yet
-        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas,) = _buildNoOpProposal();
-        bytes32 descriptionHash = keccak256(bytes("Proposal: no-op"));
-
         vm.expectRevert("GovernorWithDefenses: proposal not queued");
-        governor.execute(targets, values, calldatas, descriptionHash);
+        governor.execute(proposalId);
     }
 
     /// @notice FIX-3: execute() reverts when the timelock delay has not elapsed.
@@ -442,11 +434,8 @@ contract GovernorWithDefensesTest is Test {
         _queueProposal(proposalId);
 
         // Do NOT warp past MIN_DELAY.
-        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas,) = _buildNoOpProposal();
-        bytes32 descriptionHash = keccak256(bytes("Proposal: no-op"));
-
         vm.expectRevert("GovernorWithDefenses: timelock delay not elapsed");
-        governor.execute(targets, values, calldatas, descriptionHash);
+        governor.execute(proposalId);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -457,11 +446,8 @@ contract GovernorWithDefensesTest is Test {
     function testCancelPendingProposal() public {
         uint256 proposalId = _propose();
 
-        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas,) = _buildNoOpProposal();
-        bytes32 descriptionHash = keccak256(bytes("Proposal: no-op"));
-
         vm.prank(user1);
-        governor.cancel(targets, values, calldatas, descriptionHash);
+        governor.cancel(proposalId);
 
         assertEq(
             uint256(governor.state(proposalId)),
@@ -475,66 +461,122 @@ contract GovernorWithDefensesTest is Test {
         uint256 proposalId = _propose();
         _advanceToActive(proposalId);
 
-        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas,) = _buildNoOpProposal();
-        bytes32 descriptionHash = keccak256(bytes("Proposal: no-op"));
-
         vm.prank(user1);
         vm.expectRevert("GovernorWithDefenses: can only cancel pending proposals");
-        governor.cancel(targets, values, calldatas, descriptionHash);
+        governor.cancel(proposalId);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // FIX-8: Calldata integrity
+    // FIX-8: Calldata integrity (by design — proposalId-only interface)
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// @notice FIX-8: execute() with an altered target array reverts.
+    /// @notice FIX-8 (by design): execute() on an unknown proposalId reverts.
     function testCalldataIntegrity() public {
+        // Any proposalId that was never created should revert with "unknown proposal".
+        uint256 fakeId = uint256(keccak256("fake proposal"));
+        vm.expectRevert("GovernorWithDefenses: unknown proposal");
+        governor.execute(fakeId);
+    }
+
+    /// @notice FIX-8 (by design): queue() on an unknown proposalId reverts.
+    function testCalldataIntegrityOnQueue() public {
+        // Any proposalId that was never created should revert with "unknown proposal".
+        uint256 fakeId = uint256(keccak256("fake proposal"));
+        vm.expectRevert("GovernorWithDefenses: unknown proposal");
+        governor.queue(fakeId);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Spec: Expired, view functions, proposalCount
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// @notice Governance_Spec §Expired: a queued proposal that is not executed
+    ///         within GRACE_PERIOD transitions to Expired.
+    function testExpiredProposal() public {
         uint256 proposalId = _propose();
         _advanceToActive(proposalId);
         _castForVotes(proposalId);
         _advancePastVoteEnd(proposalId);
         _queueProposal(proposalId);
-        vm.warp(block.timestamp + MIN_DELAY + 1);
 
-        // Build a tampered targets array pointing to a different address.
-        address[] memory tamperedTargets = new address[](1);
-        tamperedTargets[0] = attacker; // differs from stored address(token)
+        // Warp past MIN_DELAY + GRACE_PERIOD.
+        vm.warp(block.timestamp + MIN_DELAY + governor.GRACE_PERIOD() + 1);
 
-        uint256[] memory values = new uint256[](1);
-        bytes[] memory calldatas = new bytes[](1);
-        bytes32 descriptionHash = keccak256(bytes("Proposal: no-op"));
-
-        // hashProposal will produce a *different* proposalId → unknown proposal revert.
-        vm.expectRevert("GovernorWithDefenses: unknown proposal");
-        governor.execute(tamperedTargets, values, calldatas, descriptionHash);
+        assertEq(
+            uint256(governor.state(proposalId)),
+            uint256(GovernorWithDefenses.ProposalState.Expired),
+            unicode"Spec \u00a7Expired: proposal must expire after grace period"
+        );
     }
 
-    /// @notice FIX-8: queue() with matching arrays but altered calldata reverts on mismatch.
-    function testCalldataIntegrityOnQueue() public {
+    /// @notice Expired proposal cannot be executed.
+    function testCannotExecuteExpiredProposal() public {
         uint256 proposalId = _propose();
         _advanceToActive(proposalId);
         _castForVotes(proposalId);
         _advancePastVoteEnd(proposalId);
+        _queueProposal(proposalId);
 
-        // The caller computes the correct proposalId (matching hash),
-        // but hands queue() calldatas that differ from what was stored.
-        // To reach _validateCallArrays we must supply arrays whose hash
-        // matches the stored descriptionHash — we do that by reconstructing
-        // the exact proposal but then changing calldatas after hashing.
-        // Since hashProposal includes calldatas, a different calldata produces
-        // a different hash → unknown proposal.  We test the explicit mismatch
-        // via the internal validator by constructing a scenario where the hash
-        // happens to match but element check fails — this is not practically
-        // achievable with keccak256, so we verify the hash-level defence instead.
-        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas,) = _buildNoOpProposal();
-        bytes32 correctHash = keccak256(bytes("Proposal: no-op"));
+        vm.warp(block.timestamp + MIN_DELAY + governor.GRACE_PERIOD() + 1);
 
-        // Mutate one calldata byte in place — changes the proposalId hash, so
-        // hashProposal(targets, values, calldatas, correctHash) produces an ID
-        // that was never stored → "unknown proposal" is the expected revert.
-        calldatas[0] = hex"deadbeef";
+        vm.expectRevert("GovernorWithDefenses: proposal not queued");
+        governor.execute(proposalId);
+    }
 
-        vm.expectRevert("GovernorWithDefenses: unknown proposal");
-        governor.queue(targets, values, calldatas, correctHash);
+    /// @notice Governance_Spec §Integration Points: getReceipt returns the
+    ///         correct support and weight after a vote is cast.
+    function testGetReceipt() public {
+        uint256 proposalId = _propose();
+        _advanceToActive(proposalId);
+
+        vm.prank(user1);
+        governor.castVote(proposalId, 1); // For
+
+        (bool hasVotedOut, uint8 support, uint256 votes) = governor.getReceipt(proposalId, user1);
+        assertTrue(hasVotedOut, "getReceipt: hasVoted must be true");
+        assertEq(support, 1, "getReceipt: support must be 1 (For)");
+        assertEq(votes, USER_TOKENS, "getReceipt: votes must equal USER_TOKENS");
+    }
+
+    /// @notice Non-voter receipt returns zero values.
+    function testGetReceiptNoVote() public {
+        uint256 proposalId = _propose();
+        (bool hasVotedOut, uint8 support, uint256 votes) = governor.getReceipt(proposalId, attacker);
+        assertFalse(hasVotedOut, "getReceipt: non-voter must have hasVoted = false");
+        assertEq(support, 0);
+        assertEq(votes, 0);
+    }
+
+    /// @notice Governance_Spec §Integration Points: proposalCount increments
+    ///         with each new proposal.
+    function testProposalCount() public {
+        assertEq(governor.proposalCount(), 0, "initial proposalCount must be 0");
+        _propose();
+        assertEq(governor.proposalCount(), 1, "proposalCount must be 1 after first proposal");
+    }
+
+    /// @notice getProposal returns the correct snapshot of a proposal.
+    function testGetProposal() public {
+        uint256 proposalId = _propose();
+        _advanceToActive(proposalId);
+        _castForVotes(proposalId);
+
+        (
+            address proposer,, // eta
+            , // targets
+            , // values
+            , // calldatas
+            uint256 startBlock,
+            uint256 endBlock,
+            uint256 forVotes,
+            uint256 againstVotes,
+            GovernorWithDefenses.ProposalState proposalState
+        ) = governor.getProposal(proposalId);
+
+        assertEq(proposer, user1);
+        assertEq(forVotes, USER_TOKENS * 2); // user1 + user2
+        assertEq(againstVotes, 0);
+        assertEq(uint256(proposalState), uint256(GovernorWithDefenses.ProposalState.Active));
+        assertTrue(startBlock < endBlock);
     }
 }

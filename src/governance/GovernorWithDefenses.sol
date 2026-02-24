@@ -92,6 +92,10 @@ interface ITokenVotes {
     /// @dev Returns vote weight checkpointed at `timepoint` (block number).
     ///      Requires timepoint < clock() (current block).
     function getPastVotes(address account, uint256 timepoint) external view returns (uint256);
+
+    /// @dev Returns the total token supply; used by quorumVotes() and
+    ///      proposalThreshold() to compute BPS-relative values.
+    function totalSupply() external view returns (uint256);
 }
 
 // ---------------------------------------------------------------------------
@@ -103,15 +107,16 @@ contract GovernorWithDefenses {
     // Types
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// @notice Lifecycle states for a proposal.
+    /// @notice Lifecycle states for a proposal (Governance_Spec §ProposalState).
     enum ProposalState {
         Pending, // 0 – created, voting not yet started
         Active, // 1 – voting window is open
         Succeeded, // 2 – voting ended, for > against, quorum met
         Defeated, // 3 – voting ended, for <= against OR quorum not met
-        Queued, // 4 – queued in TimelockController, awaiting delay  (FIX-3)
-        Executed, // 5 – proposal actions have been dispatched
-        Canceled // 6 – canceled while Pending only                   (FIX-7)
+        Queued, // 4 – queued in TimelockController, awaiting delay        (FIX-3)
+        Expired, // 5 – queued but not executed within GRACE_PERIOD       (Spec)
+        Executed, // 6 – proposal actions have been dispatched
+        Canceled // 7 – canceled while Pending only                       (FIX-7)
     }
 
     struct ProposalVotes {
@@ -120,12 +125,20 @@ contract GovernorWithDefenses {
         uint256 abstainVotes;
     }
 
+    /// @notice Per-voter vote receipt (Governance_Spec §Integration Points).
+    struct Receipt {
+        bool hasVoted;
+        uint8 support;
+        uint256 votes;
+    }
+
     struct Proposal {
         address proposer;
         /// @dev FIX-1: block number at which vote weight is frozen.
         uint256 snapshotBlock;
         uint256 voteStart; // first block where voting is allowed
         uint256 voteEnd; // last block where voting is allowed (inclusive)
+        uint256 eta; // UNIX timestamp when timelock operation matures
         bool canceled;
         bool queued; // FIX-3: true once scheduleBatch succeeds
         bool executed;
@@ -139,6 +152,17 @@ contract GovernorWithDefenses {
     // Storage
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ── Timelock grace period (Governance_Spec §Expired) ─────────────────────
+    uint256 public constant GRACE_PERIOD = 14 days;
+
+    // ── Dynamic quorum bounds (Governance_Spec §Dynamic Quorum) ──────────────
+    uint256 public constant MIN_QUORUM_BPS = 200; // 2 % floor
+    uint256 public constant MAX_QUORUM_BPS = 1000; // 10 % ceil
+
+    /// @dev Rolling window size for dynamic quorum average.
+    uint256 private constant PARTICIPATION_WINDOW = 10;
+
+    // ── Immutables ────────────────────────────────────────────────────────────
     string public name;
 
     /// @notice The voting token (ERC20Votes-compatible).
@@ -147,23 +171,37 @@ contract GovernorWithDefenses {
     /// @notice TimelockController that acts as the execution layer.  (FIX-3)
     TimelockController public immutable TIMELOCK;
 
+    // ── Configurable parameters ───────────────────────────────────────────────
     /// @notice Blocks to wait after proposal creation before voting starts.
     uint256 public votingDelay;
 
     /// @notice Duration in blocks of the voting window.
     uint256 public votingPeriod;
 
-    /// @notice FIX-4: minimum vote weight required to create a proposal.
-    uint256 public proposalThreshold;
+    /// @notice FIX-4: basis points of total supply required to create a proposal.
+    ///         e.g. 100 = 1 %.  Call proposalThreshold() for the absolute value.
+    uint256 public proposalThresholdBps;
 
-    /// @notice FIX-5: minimum total participation for a vote to be valid.
-    uint256 public quorumVotes;
+    /// @notice Base quorum in basis points of total supply.
+    ///         e.g. 400 = 4 %.  Call quorumVotes() for the dynamic absolute value.
+    uint256 public quorumBps;
 
+    // ── Proposal storage ──────────────────────────────────────────────────────
     mapping(uint256 => Proposal) internal _proposals;
     mapping(uint256 => ProposalVotes) internal _proposalVotes;
 
-    /// @dev FIX-2: enforced guard — checked BEFORE counting in _castVote.
+    /// @dev Per-voter receipts: hasVoted / support / votes (for getReceipt()).
+    mapping(uint256 => mapping(address => Receipt)) private _receipts;
+
+    /// @dev FIX-2: public bool guard for quick external checks.
     mapping(uint256 => mapping(address => bool)) public hasVoted;
+
+    /// @dev Total proposals ever created; returned by proposalCount().
+    uint256 private _proposalCount;
+
+    /// @dev Rolling window of participation BPS from the last
+    ///      PARTICIPATION_WINDOW completed proposals (used by quorumVotes()).
+    uint256[] private _recentParticipationBps;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Events
@@ -192,33 +230,34 @@ contract GovernorWithDefenses {
     // ─────────────────────────────────────────────────────────────────────────
 
     /// @notice Deploys the governor, wiring up the token and timelock.
-    /// @param _name              Human-readable governor name.
-    /// @param _token             ERC20Votes-compatible governance token.
-    /// @param _timelock          TimelockController used as the execution layer.
-    /// @param _votingDelay       Blocks between proposal creation and voting start.
-    /// @param _votingPeriod      Duration in blocks of the voting window.
-    /// @param _proposalThreshold Minimum delegated votes required to propose.
-    /// @param _quorumVotes       Minimum total participation for a vote to count.
+    /// @param _name                 Human-readable governor name.
+    /// @param _token                ERC20Votes-compatible governance token.
+    /// @param _timelock             TimelockController used as the execution layer.
+    /// @param _votingDelay          Blocks between proposal creation and voting start.
+    /// @param _votingPeriod         Duration in blocks of the voting window.
+    /// @param _proposalThresholdBps BPS of total supply required to propose (e.g. 100 = 1 %).
+    /// @param _quorumBps            Base quorum in BPS of total supply (e.g. 400 = 4 %).
     constructor(
         string memory _name,
         ITokenVotes _token,
         TimelockController _timelock,
         uint256 _votingDelay,
         uint256 _votingPeriod,
-        uint256 _proposalThreshold,
-        uint256 _quorumVotes
+        uint256 _proposalThresholdBps,
+        uint256 _quorumBps
     ) {
         require(address(_token) != address(0), "GovernorWithDefenses: zero token");
         require(address(_timelock) != address(0), "GovernorWithDefenses: zero timelock");
         require(_votingPeriod > 0, "GovernorWithDefenses: zero period");
+        require(_quorumBps <= 10_000, "GovernorWithDefenses: quorum > 100%");
 
         name = _name;
         TOKEN = _token;
         TIMELOCK = _timelock;
         votingDelay = _votingDelay;
         votingPeriod = _votingPeriod;
-        proposalThreshold = _proposalThreshold;
-        quorumVotes = _quorumVotes;
+        proposalThresholdBps = _proposalThresholdBps;
+        quorumBps = _quorumBps;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -237,7 +276,12 @@ contract GovernorWithDefenses {
 
         if (p.canceled) return ProposalState.Canceled;
         if (p.executed) return ProposalState.Executed;
-        if (p.queued) return ProposalState.Queued;
+
+        if (p.queued) {
+            // Governance_Spec §Expired: if timelock window has passed, proposal expires.
+            if (block.timestamp >= p.eta + GRACE_PERIOD) return ProposalState.Expired;
+            return ProposalState.Queued;
+        }
 
         if (block.number <= p.voteStart) return ProposalState.Pending;
         if (block.number <= p.voteEnd) return ProposalState.Active;
@@ -246,7 +290,7 @@ contract GovernorWithDefenses {
         ProposalVotes storage v = _proposalVotes[proposalId];
 
         // FIX-5: require minimum participation before declaring Succeeded.
-        bool quorumReached = (v.forVotes + v.againstVotes + v.abstainVotes) >= quorumVotes;
+        bool quorumReached = (v.forVotes + v.againstVotes + v.abstainVotes) >= quorumVotes();
         bool votingSucceeded = quorumReached && (v.forVotes > v.againstVotes);
 
         return votingSucceeded ? ProposalState.Succeeded : ProposalState.Defeated;
@@ -294,7 +338,7 @@ contract GovernorWithDefenses {
         //        Uses getPastVotes to prevent same-block flash manipulation.
         uint256 checkBlock = block.number > 0 ? block.number - 1 : 0;
         require(
-            TOKEN.getPastVotes(msg.sender, checkBlock) >= proposalThreshold,
+            TOKEN.getPastVotes(msg.sender, checkBlock) >= proposalThreshold(),
             "GovernorWithDefenses: proposer votes below threshold"
         );
 
@@ -310,6 +354,9 @@ contract GovernorWithDefenses {
 
         require(_proposals[proposalId].voteStart == 0, "GovernorWithDefenses: proposal already exists");
 
+        // Increment counter before writing proposal (Governance_Spec §Integration Points).
+        ++_proposalCount;
+
         // FIX-1: Record the snapshot block — vote weight is frozen here.
         uint256 snapshot = block.number;
         uint256 voteStart = snapshot + votingDelay;
@@ -320,6 +367,7 @@ contract GovernorWithDefenses {
             snapshotBlock: snapshot, // FIX-1
             voteStart: voteStart,
             voteEnd: voteEnd,
+            eta: 0, // set in queue()
             canceled: false,
             queued: false,
             executed: false,
@@ -386,6 +434,9 @@ contract GovernorWithDefenses {
             v.abstainVotes += weight;
         }
 
+        // Governance_Spec §Integration Points: store receipt for getReceipt().
+        _receipts[proposalId][voter] = Receipt({hasVoted: true, support: support, votes: weight});
+
         emit VoteCast(voter, proposalId, support, weight, reason);
     }
 
@@ -396,42 +447,37 @@ contract GovernorWithDefenses {
      *             the TimelockController, enforcing the configurable delay.
      *      FIX-6: CEI — proposal state is marked `queued = true` BEFORE the
      *             external call to scheduleBatch.
-     *      FIX-8: Caller-supplied arrays are validated against stored values
-     *             before any state change.
+     *      FIX-8: Uses stored arrays from proposal creation; no caller-supplied
+     *             arrays accepted, so tampering is impossible by design.
      *
-     * @param targets         Call targets (must match proposal).
-     * @param values          ETH values (must match proposal).
-     * @param calldatas       Encoded call data (must match proposal).
-     * @param descriptionHash keccak256 of the proposal description.
-     * @return proposalId     ID of the queued proposal.
+     * @param proposalId  ID of the proposal to queue.
      */
-    function queue(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash)
-        external
-        returns (uint256 proposalId)
-    {
-        proposalId = hashProposal(targets, values, calldatas, descriptionHash);
-
+    function queue(uint256 proposalId) external {
         require(state(proposalId) == ProposalState.Succeeded, "GovernorWithDefenses: proposal not succeeded");
 
-        // FIX-8: Validate caller-supplied arrays against stored proposal data.
-        _validateCallArrays(proposalId, targets, values, calldatas);
+        Proposal storage p = _proposals[proposalId];
 
         // FIX-6: CEI — write state BEFORE external call.
-        _proposals[proposalId].queued = true;
+        p.queued = true;
 
         // FIX-3: Schedule the batch in the TimelockController.
         //        salt = bytes32(proposalId) makes each proposal a unique operation.
         uint256 delay = TIMELOCK.getMinDelay();
         TIMELOCK.scheduleBatch(
-            targets,
-            values,
-            calldatas,
+            p.targets,
+            p.values,
+            p.calldatas,
             bytes32(0), // predecessor — none required
             bytes32(proposalId), // salt       — unique per proposal
             delay
         );
 
         uint256 eta = block.timestamp + delay;
+        p.eta = eta; // store for Expired check
+
+        // Record participation for dynamic quorum update.
+        _recordParticipation(proposalId);
+
         emit ProposalQueued(proposalId, eta);
     }
 
@@ -442,36 +488,25 @@ contract GovernorWithDefenses {
      *             which enforces that minDelay has elapsed since scheduling.
      *      FIX-6: CEI — proposal state is marked `executed = true` BEFORE the
      *             external call to executeBatch.
-     *      FIX-8: Caller-supplied arrays are validated against stored values.
+     *      FIX-8: Uses stored arrays; no way to inject modified parameters.
      *
-     * @param targets         Call targets (must match proposal).
-     * @param values          ETH values (must match proposal).
-     * @param calldatas       Encoded call data (must match proposal).
-     * @param descriptionHash keccak256 of the proposal description.
-     * @return proposalId     ID of the executed proposal.
+     * @param proposalId  ID of the proposal to execute.
      */
-    function execute(
-        address[] memory targets,
-        uint256[] memory values,
-        bytes[] memory calldatas,
-        bytes32 descriptionHash
-    ) external payable returns (uint256 proposalId) {
-        proposalId = hashProposal(targets, values, calldatas, descriptionHash);
-
+    function execute(uint256 proposalId) external payable {
         require(state(proposalId) == ProposalState.Queued, "GovernorWithDefenses: proposal not queued");
 
-        // FIX-8: Validate caller-supplied arrays against stored proposal data.
-        _validateCallArrays(proposalId, targets, values, calldatas);
+        Proposal storage p = _proposals[proposalId];
 
         // FIX-3: Confirm the timelock operation is ready (delay elapsed).
-        bytes32 timelockId = TIMELOCK.hashOperationBatch(targets, values, calldatas, bytes32(0), bytes32(proposalId));
+        bytes32 timelockId =
+            TIMELOCK.hashOperationBatch(p.targets, p.values, p.calldatas, bytes32(0), bytes32(proposalId));
         require(TIMELOCK.isOperationReady(timelockId), "GovernorWithDefenses: timelock delay not elapsed");
 
         // FIX-6: CEI — write executed flag BEFORE external call.
-        _proposals[proposalId].executed = true;
+        p.executed = true;
 
         // FIX-3: Execute through the timelock (not directly).
-        TIMELOCK.executeBatch{value: msg.value}(targets, values, calldatas, bytes32(0), bytes32(proposalId));
+        TIMELOCK.executeBatch{value: msg.value}(p.targets, p.values, p.calldatas, bytes32(0), bytes32(proposalId));
 
         emit ProposalExecuted(proposalId);
     }
@@ -483,14 +518,10 @@ contract GovernorWithDefenses {
      *             (before voting has started).  Prevents a proposer from
      *             canceling mid-vote to manipulate outcomes.
      *      FIX-6: CEI — state is updated before emitting the event.
+     *
+     * @param proposalId  ID of the proposal to cancel.
      */
-    function cancel(
-        address[] memory targets,
-        uint256[] memory values,
-        bytes[] memory calldatas,
-        bytes32 descriptionHash
-    ) external returns (uint256 proposalId) {
-        proposalId = hashProposal(targets, values, calldatas, descriptionHash);
+    function cancel(uint256 proposalId) external {
         Proposal storage p = _proposals[proposalId];
 
         // FIX-7: Only allow cancellation while the proposal is still Pending.
@@ -503,8 +534,127 @@ contract GovernorWithDefenses {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // View helpers
+    // BPS-derived parameter views (Governance_Spec §Parameters)
     // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * @notice Absolute proposal-creation threshold derived from
+     *         `proposalThresholdBps` and the current total supply.
+     * @return Minimum delegated vote weight required to call propose().
+     */
+    function proposalThreshold() public view returns (uint256) {
+        return TOKEN.totalSupply() * proposalThresholdBps / 10_000;
+    }
+
+    /**
+     * @notice Dynamic quorum: absolute vote count required for a proposal to
+     *         succeed.  Adjusts based on recent participation history.
+     *
+     *         Formula (Governance_Spec §Dynamic Quorum):
+     *           dynamicBps = clamp(
+     *               avgRecentParticipationBps * 70% + 500,
+     *               MIN_QUORUM_BPS, MAX_QUORUM_BPS
+     *           )
+     *           return TOKEN.totalSupply() * dynamicBps / 10_000
+     *
+     *         Falls back to plain `quorumBps` when no history exists.
+     * @return Minimum total participation (for+against+abstain) required.
+     */
+    function quorumVotes() public view returns (uint256) {
+        uint256 supply = TOKEN.totalSupply();
+        if (_recentParticipationBps.length == 0) {
+            return supply * quorumBps / 10_000;
+        }
+
+        // Average recent participation BPS.
+        uint256 sum;
+        for (uint256 i = 0; i < _recentParticipationBps.length; ++i) {
+            sum += _recentParticipationBps[i];
+        }
+        uint256 avgBps = sum / _recentParticipationBps.length;
+
+        // dynamic = avgBps * 70% + 500 (half-point of floor+ceiling).
+        uint256 dynamicBps = avgBps * 7000 / 10_000 + 500;
+
+        // Clamp to [MIN_QUORUM_BPS, MAX_QUORUM_BPS].
+        if (dynamicBps < MIN_QUORUM_BPS) dynamicBps = MIN_QUORUM_BPS;
+        if (dynamicBps > MAX_QUORUM_BPS) dynamicBps = MAX_QUORUM_BPS;
+
+        return supply * dynamicBps / 10_000;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Spec integration-point views (Governance_Spec §Integration Points)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * @notice Returns a summary of the given proposal for off-chain consumers.
+     * @return proposer      Address that created the proposal.
+     * @return eta           UNIX timestamp when the timelock operation matures.
+     * @return targets       Call targets.
+     * @return values        ETH values.
+     * @return calldatas     ABI-encoded call data.
+     * @return startBlock    First block where voting is allowed.
+     * @return endBlock      Last block where voting is allowed.
+     * @return forVotes      Votes cast in favour.
+     * @return againstVotes  Votes cast against.
+     * @return proposalState Current state of the proposal.
+     */
+    function getProposal(uint256 proposalId)
+        external
+        view
+        returns (
+            address proposer,
+            uint256 eta,
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            uint256 startBlock,
+            uint256 endBlock,
+            uint256 forVotes,
+            uint256 againstVotes,
+            ProposalState proposalState
+        )
+    {
+        Proposal storage p = _proposals[proposalId];
+        require(p.voteStart != 0, "unknown proposal");
+
+        ProposalVotes storage v = _proposalVotes[proposalId];
+        return (
+            p.proposer,
+            p.eta,
+            p.targets,
+            p.values,
+            p.calldatas,
+            p.voteStart,
+            p.voteEnd,
+            v.forVotes,
+            v.againstVotes,
+            state(proposalId)
+        );
+    }
+
+    /**
+     * @notice Returns the vote receipt for a specific voter on a proposal.
+     * @return hasVotedOut Whether the voter has cast a vote.
+     * @return support     0 Against / 1 For / 2 Abstain.
+     * @return votes       Vote weight applied.
+     */
+    function getReceipt(uint256 proposalId, address voter)
+        external
+        view
+        returns (bool hasVotedOut, uint8 support, uint256 votes)
+    {
+        Receipt storage r = _receipts[proposalId][voter];
+        return (r.hasVoted, r.support, r.votes);
+    }
+
+    /**
+     * @notice Total number of proposals ever created.
+     */
+    function proposalCount() external view returns (uint256) {
+        return _proposalCount;
+    }
 
     /**
      * @notice Returns the raw vote tallies for a proposal.
@@ -555,27 +705,28 @@ contract GovernorWithDefenses {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * @dev FIX-8: Validate caller-supplied call arrays against stored proposal data.
-     *             Reverts on any length mismatch or element-level discrepancy.
+     * @dev Records the participation BPS of a just-queued proposal into the
+     *      rolling window used by quorumVotes().
+     *
+     *      participationBps = totalVotes * 10_000 / totalSupply
+     *
+     *      Window is capped at PARTICIPATION_WINDOW entries (oldest dropped).
      */
-    function _validateCallArrays(
-        uint256 proposalId,
-        address[] memory targets,
-        uint256[] memory values,
-        bytes[] memory calldatas
-    ) internal view {
-        Proposal storage p = _proposals[proposalId];
+    function _recordParticipation(uint256 proposalId) internal {
+        ProposalVotes storage v = _proposalVotes[proposalId];
+        uint256 totalVotes = v.forVotes + v.againstVotes + v.abstainVotes;
+        uint256 supply = TOKEN.totalSupply();
 
-        require(
-            targets.length == p.targets.length && values.length == p.values.length
-                && calldatas.length == p.calldatas.length,
-            "GovernorWithDefenses: array length mismatch"
-        );
+        uint256 participationBps = supply > 0 ? totalVotes * 10_000 / supply : 0;
 
-        for (uint256 i = 0; i < targets.length; ++i) {
-            require(targets[i] == p.targets[i], "GovernorWithDefenses: target mismatch");
-            require(values[i] == p.values[i], "GovernorWithDefenses: value mismatch");
-            require(keccak256(calldatas[i]) == keccak256(p.calldatas[i]), "GovernorWithDefenses: calldata mismatch");
+        if (_recentParticipationBps.length < PARTICIPATION_WINDOW) {
+            _recentParticipationBps.push(participationBps);
+        } else {
+            // Rotate: shift left and append.
+            for (uint256 i = 0; i + 1 < _recentParticipationBps.length; ++i) {
+                _recentParticipationBps[i] = _recentParticipationBps[i + 1];
+            }
+            _recentParticipationBps[_recentParticipationBps.length - 1] = participationBps;
         }
     }
 
