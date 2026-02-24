@@ -7,16 +7,57 @@ import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20P
 import {ERC20Votes} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import {Nonces} from "@openzeppelin/contracts/utils/Nonces.sol";
 
+/**
+ * @title GovernanceToken
+ * @dev ERC20 governance token that underpins both GovernorBase (secure) and
+ *      GovernorVulnerable (intentionally broken) in this research project.
+ *
+ * ============================================================
+ * ROLE IN THE GOVERNANCE SYSTEM
+ * ============================================================
+ *
+ * 1. Vote weight  — token holders accumulate delegated vote weight via
+ *    OpenZeppelin's ERC20Votes checkpoint mechanism.  Calling delegate()
+ *    or selfDelegate() activates on-chain vote checkpoints.
+ *
+ * 2. Snapshot safety  — ERC20Votes records historical checkpoints so that
+ *    a secure governor can call getPastVotes(account, blockNumber) and get
+ *    the weight that existed at proposal-creation time, preventing flash-loan
+ *    attacks.  GovernorVulnerable intentionally ignores this (VULN-1).
+ *
+ * 3. Supply cap  — MAX_SUPPLY (1 billion tokens) is enforced on both mint()
+ *    and the constructor to bound total voting power.
+ *
+ * ============================================================
+ * INHERITANCE STACK
+ * ============================================================
+ *
+ * GovernanceToken
+ *   └─ ERC20Votes      (checkpoint-based voting power)
+ *       └─ ERC20Permit (EIP-2612 gasless approvals)
+ *           └─ ERC20   (standard token)
+ *   └─ Ownable         (mint access control)
+ *   └─ Nonces          (shared nonce store for Permit)
+ *
+ * ============================================================
+ */
 contract GovernanceToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
+    // ─────────────────────────────────────────────────────────────────────────
+    // Constants
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// @notice Hard cap on the total token supply.
     uint256 public constant MAX_SUPPLY = 1_000_000_000e18;
 
-    /**
-     * @dev Sets up the governance token with a name, symbol, initial owner, and initial supply.
-     * @param name_ The name of the token.
-     * @param symbol_ The symbol of the token.
-     * @param initialOwner The address that will own the initial supply and the contract.
-     * @param initialSupply The amount of tokens to mint to the initial owner.
-     */
+    // ─────────────────────────────────────────────────────────────────────────
+    // Constructor
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// @notice Deploys the token, minting `initialSupply` to `initialOwner`.
+    /// @param name_         Token name.
+    /// @param symbol_       Token symbol.
+    /// @param initialOwner  Receives the initial supply and contract ownership.
+    /// @param initialSupply Amount of tokens minted at construction.
     constructor(string memory name_, string memory symbol_, address initialOwner, uint256 initialSupply)
         ERC20(name_, symbol_)
         ERC20Permit(name_)
@@ -28,41 +69,38 @@ contract GovernanceToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
         _mint(initialOwner, initialSupply);
     }
 
-    /**
-     * @dev Mints new tokens to a specified address. Only callable by the owner.
-     * @param to The address to mint tokens to.
-     * @param amount The amount of tokens to mint.
-     */
+    // ─────────────────────────────────────────────────────────────────────────
+    // Owner actions
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// @notice Mints `amount` tokens to `to`.  Only callable by the owner.
+    /// @param to     Recipient of the newly minted tokens.
+    /// @param amount Number of tokens to mint.
     function mint(address to, uint256 amount) external onlyOwner {
         require(totalSupply() + amount <= MAX_SUPPLY, "max supply exceeded");
         _mint(to, amount);
     }
 
-    /**
-     * @dev Delegates votes from the sender to themselves.
-     * This is a helper function to easily enable voting power for the token holder.
-     */
+    /// @notice Convenience wrapper — delegates the caller's votes to themselves.
     function selfDelegate() external {
         _delegate(msg.sender, msg.sender);
     }
 
-    /**
-     * @dev Overrides the _update function to handle vote transfers.
-     * Required by ERC20Votes.
-     * @param from The address modifying the balance.
-     * @param to The address receiving the balance.
-     * @param value The amount of tokens being transferred.
-     */
+    // ─────────────────────────────────────────────────────────────────────────
+    // Overrides
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// @dev Required by ERC20 and ERC20Votes to update vote balances on transfers.
+    /// @param from  Address whose balance decreases.
+    /// @param to    Address whose balance increases.
+    /// @param value Amount transferred.
     function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Votes) {
         super._update(from, to, value);
     }
 
-    /**
-     * @dev Overrides the nonces function.
-     * Required by ERC20Permit and Nonces.
-     * @param owner The address to check the nonce for.
-     * @return The current nonce for the address.
-     */
+    /// @dev Required by ERC20Permit and Nonces.
+    /// @param owner Address whose nonce is queried.
+    /// @return      Current nonce for `owner`.
     function nonces(address owner) public view override(ERC20Permit, Nonces) returns (uint256) {
         return super.nonces(owner);
     }

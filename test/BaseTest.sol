@@ -6,40 +6,92 @@ import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {Timelock} from "../src/governance/Timelock.sol";
 import {GovernorBase} from "../src/governance/GovernorBase.sol";
 
+/**
+ * @title BaseTest
+ * @dev Shared Forge test fixture inherited by GovernorBaseTest.
+ *      Bootstraps the complete governance stack and provides a set of
+ *      pre-funded, pre-delegated test actors.
+ *
+ * ============================================================
+ * WHAT IS SET UP IN setUp()
+ * ============================================================
+ *
+ * 1. GovernanceToken  — minted with INITIAL_SUPPLY to admin.
+ * 2. Timelock         — MIN_DELAY = 1 day; admin holds DEFAULT_ADMIN_ROLE
+ *                        initially; revoked at the end of setUp().
+ * 3. GovernorBase     — wired to token + timelock with reduced test
+ *                        parameters (10-block delay, 100-block period).
+ * 4. Roles            — PROPOSER / EXECUTOR / CANCELLER granted to governor;
+ *                        deployer admin role revoked for security.
+ * 5. Token distribution — 10 000 tokens each to user1, user2, user3.
+ * 6. Delegation       — each user self-delegates to activate vote weight.
+ *
+ * ============================================================
+ * TEST ACTORS
+ * ============================================================
+ *
+ * admin  — deploys and configures the stack; holds no residual privileges.
+ * user1  — 10 000 GOV, self-delegated (primary proposer in most tests).
+ * user2  — 10 000 GOV, self-delegated.
+ * user3  — 10 000 GOV, self-delegated.
+ *
+ * ============================================================
+ */
 contract BaseTest is Test {
+    // ─────────────────────────────────────────────────────────────────────────
+    // Contracts
+    // ─────────────────────────────────────────────────────────────────────────
+
     GovernanceToken public token;
     Timelock public timelock;
     GovernorBase public governor;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Actors
+    // ─────────────────────────────────────────────────────────────────────────
 
     address public admin = makeAddr("admin");
     address public user1 = makeAddr("user1");
     address public user2 = makeAddr("user2");
     address public user3 = makeAddr("user3");
 
-    uint256 public constant INITIAL_SUPPLY = 100_000e18;
-    uint256 public constant MIN_DELAY = 1 days;
-    uint48 public constant VOTING_DELAY = 1 days; // 7200 blocks assuming 12s block time, usually expressed in blocks or seconds depending on clock mode. OpenZeppelin Governor usually uses Clock (block number or timestamp).
-    // GovernorSettings uses uint48 for votingDelay and uint32 for votingPeriod.
-    // Default OpenZeppelin Governor uses block number (IVotes).
+    // ─────────────────────────────────────────────────────────────────────────
+    // Constants
+    // ─────────────────────────────────────────────────────────────────────────
 
-    // Let's use smaller values for testing
-    uint48 public constant TEST_VOTING_DELAY = 10; // blocks
-    uint32 public constant TEST_VOTING_PERIOD = 100; // blocks
+    /// @dev Total supply minted to admin at deployment.
+    uint256 public constant INITIAL_SUPPLY = 100_000e18;
+    /// @dev Timelock minimum execution delay.
+    uint256 public constant MIN_DELAY = 1 days;
+    /// @dev Voting delay used in production config (not used in these tests).
+    uint48 public constant VOTING_DELAY = 1 days;
+
+    // Reduced values for faster test execution.
+    /// @dev Voting delay for tests (blocks).
+    uint48 public constant TEST_VOTING_DELAY = 10;
+    /// @dev Voting period for tests (blocks).
+    uint32 public constant TEST_VOTING_PERIOD = 100;
+    /// @dev Proposal threshold for tests.
     uint256 public constant TEST_PROPOSAL_THRESHOLD = 0;
-    uint256 public constant TEST_QUORUM_PERCENTAGE = 4; // 4%
+    /// @dev Quorum percentage for tests.
+    uint256 public constant TEST_QUORUM_PERCENTAGE = 4;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Setup
+    // ─────────────────────────────────────────────────────────────────────────
 
     function setUp() public virtual {
-        // 1. Deploy Governance Token
         vm.startPrank(admin);
+
+        // 1. Deploy Governance Token.
         token = new GovernanceToken("Governance Token", "GOV", admin, INITIAL_SUPPLY);
 
-        // 2. Deploy Timelock
+        // 2. Deploy Timelock.
         address[] memory proposers = new address[](0);
         address[] memory executors = new address[](0);
         timelock = new Timelock(MIN_DELAY, proposers, executors, admin);
 
-        // 3. Deploy Governor
-        // Note: Governor needs to be a proposer in Timelock
+        // 3. Deploy Governor — needs to be a proposer in the Timelock.
         governor = new GovernorBase(
             "DAO Governor",
             token,
@@ -50,23 +102,22 @@ contract BaseTest is Test {
             TEST_QUORUM_PERCENTAGE
         );
 
-        // 4. Setup Roles
-        // Grant Proposer role to Governor
+        // 4. Wire Timelock roles.
         bytes32 proposerRole = timelock.PROPOSER_ROLE();
         bytes32 executorRole = timelock.EXECUTOR_ROLE();
-        bytes32 adminRole = timelock.DEFAULT_ADMIN_ROLE();
+        bytes32 adminRole    = timelock.DEFAULT_ADMIN_ROLE();
 
         timelock.grantRole(proposerRole, address(governor));
-        timelock.grantRole(executorRole, address(0)); // Allow anyone to execute
-        timelock.revokeRole(adminRole, admin); // Revoke admin role from deployer for security
+        timelock.grantRole(executorRole, address(0)); // anyone can execute when delay is met
+        timelock.revokeRole(adminRole, admin);        // revoke deployer admin for security
 
-        // Distribute tokens and delegate
-        token.transfer(user1, 10_000e18);
-        token.transfer(user2, 10_000e18);
-        token.transfer(user3, 10_000e18);
+        // 5. Distribute tokens.
+        require(token.transfer(user1, 10_000e18), "transfer failed");
+        require(token.transfer(user2, 10_000e18), "transfer failed");
+        require(token.transfer(user3, 10_000e18), "transfer failed");
         vm.stopPrank();
 
-        // Users verify delegation
+        // 6. Each user self-delegates to activate voting power.
         vm.prank(user1);
         token.delegate(user1);
 
