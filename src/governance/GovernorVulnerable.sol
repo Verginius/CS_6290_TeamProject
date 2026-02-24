@@ -123,9 +123,7 @@ contract GovernorVulnerable {
         uint256 voteEnd
     );
 
-    event VoteCast(
-        address indexed voter, uint256 indexed proposalId, uint8 support, uint256 weight, string reason
-    );
+    event VoteCast(address indexed voter, uint256 indexed proposalId, uint8 support, uint256 weight, string reason);
 
     event ProposalExecuted(uint256 indexed proposalId);
     event ProposalCanceled(uint256 indexed proposalId);

@@ -181,12 +181,7 @@ contract GovernorVulnerableTest is Test {
 
         // Deploy vulnerable governor
         governor = new GovernorVulnerable(
-            "VulnerableDAO",
-            ITokenVotes(address(token)),
-            VOTING_DELAY,
-            VOTING_PERIOD,
-            PROPOSAL_THRESHOLD,
-            QUORUM_VOTES
+            "VulnerableDAO", ITokenVotes(address(token)), VOTING_DELAY, VOTING_PERIOD, PROPOSAL_THRESHOLD, QUORUM_VOTES
         );
 
         // Deploy dummy target
@@ -251,7 +246,7 @@ contract GovernorVulnerableTest is Test {
      * @notice Newly created proposal is Pending.
      */
     function test_lifecycle_Pending() public {
-        (uint256 proposalId,,,, ) = _createSimpleProposal();
+        (uint256 proposalId,,,,) = _createSimpleProposal();
         assertEq(uint8(governor.state(proposalId)), uint8(GovernorVulnerable.ProposalState.Pending));
     }
 
@@ -259,7 +254,7 @@ contract GovernorVulnerableTest is Test {
      * @notice After votingDelay blocks the proposal becomes Active.
      */
     function test_lifecycle_Active() public {
-        (uint256 proposalId,,,, ) = _createSimpleProposal();
+        (uint256 proposalId,,,,) = _createSimpleProposal();
 
         vm.roll(block.number + VOTING_DELAY + 1);
         assertEq(uint8(governor.state(proposalId)), uint8(GovernorVulnerable.ProposalState.Active));
@@ -269,7 +264,7 @@ contract GovernorVulnerableTest is Test {
      * @notice After the voting window closes with more for than against → Succeeded.
      */
     function test_lifecycle_Succeeded() public {
-        (uint256 proposalId,,,, ) = _createSimpleProposal();
+        (uint256 proposalId,,,,) = _createSimpleProposal();
 
         vm.roll(block.number + VOTING_DELAY + 1);
 
@@ -284,8 +279,13 @@ contract GovernorVulnerableTest is Test {
      * @notice A succeeded proposal transitions to Executed after execute().
      */
     function test_lifecycle_Executed() public {
-        (uint256 proposalId, address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description) =
-            _createSimpleProposal();
+        (
+            uint256 proposalId,
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory description
+        ) = _createSimpleProposal();
 
         vm.roll(block.number + VOTING_DELAY + 1);
         vm.prank(user1);
@@ -303,7 +303,7 @@ contract GovernorVulnerableTest is Test {
      * @notice A proposal where against >= for is Defeated.
      */
     function test_lifecycle_Defeated() public {
-        (uint256 proposalId,,,, ) = _createSimpleProposal();
+        (uint256 proposalId,,,,) = _createSimpleProposal();
 
         vm.roll(block.number + VOTING_DELAY + 1);
         vm.prank(user1);
@@ -317,8 +317,13 @@ contract GovernorVulnerableTest is Test {
      * @notice A canceled proposal is in the Canceled state.
      */
     function test_lifecycle_Canceled() public {
-        (uint256 proposalId, address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description) =
-            _createSimpleProposal();
+        (
+            uint256 proposalId,
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory description
+        ) = _createSimpleProposal();
 
         vm.prank(user1);
         governor.cancel(targets, values, calldatas, keccak256(bytes(description)));
@@ -334,7 +339,7 @@ contract GovernorVulnerableTest is Test {
      * @notice For, Against, and Abstain votes are each tallied correctly.
      */
     function test_voting_tallies() public {
-        (uint256 proposalId,,,, ) = _createSimpleProposal();
+        (uint256 proposalId,,,,) = _createSimpleProposal();
         vm.roll(block.number + VOTING_DELAY + 1);
 
         vm.prank(user1);
@@ -356,7 +361,7 @@ contract GovernorVulnerableTest is Test {
      * @notice castVoteWithReason records the same tallies.
      */
     function test_voting_withReason() public {
-        (uint256 proposalId,,,, ) = _createSimpleProposal();
+        (uint256 proposalId,,,,) = _createSimpleProposal();
         vm.roll(block.number + VOTING_DELAY + 1);
 
         vm.prank(user1);
@@ -370,7 +375,7 @@ contract GovernorVulnerableTest is Test {
      * @notice Reverts with invalid support value (> 2).
      */
     function test_voting_invalidSupport() public {
-        (uint256 proposalId,,,, ) = _createSimpleProposal();
+        (uint256 proposalId,,,,) = _createSimpleProposal();
         vm.roll(block.number + VOTING_DELAY + 1);
 
         vm.prank(user1);
@@ -382,7 +387,7 @@ contract GovernorVulnerableTest is Test {
      * @notice Voting before the voting window opens reverts.
      */
     function test_voting_notActiveYet() public {
-        (uint256 proposalId,,,, ) = _createSimpleProposal();
+        (uint256 proposalId,,,,) = _createSimpleProposal();
         // Still pending
         vm.prank(user1);
         vm.expectRevert("GovernorVulnerable: voting not active");
@@ -393,7 +398,7 @@ contract GovernorVulnerableTest is Test {
      * @notice Voting after the window closes reverts.
      */
     function test_voting_closedWindow() public {
-        (uint256 proposalId,,,, ) = _createSimpleProposal();
+        (uint256 proposalId,,,,) = _createSimpleProposal();
         vm.roll(block.number + VOTING_DELAY + VOTING_PERIOD + 10);
 
         vm.prank(user1);
@@ -416,7 +421,7 @@ contract GovernorVulnerableTest is Test {
      *         would be zero because they held nothing at proposal creation time.
      */
     function test_VULN1_flashLoanVoting() public {
-        (uint256 proposalId,,,, ) = _createSimpleProposal();
+        (uint256 proposalId,,,,) = _createSimpleProposal();
         vm.roll(block.number + VOTING_DELAY + 1);
 
         // Attacker has no tokens yet
@@ -445,7 +450,7 @@ contract GovernorVulnerableTest is Test {
      *         vote weight on each call because the `hasVoted` guard is absent.
      */
     function test_VULN2_doubleVoting() public {
-        (uint256 proposalId,,,, ) = _createSimpleProposal();
+        (uint256 proposalId,,,,) = _createSimpleProposal();
         vm.roll(block.number + VOTING_DELAY + 1);
 
         vm.startPrank(user1);
@@ -465,8 +470,13 @@ contract GovernorVulnerableTest is Test {
      *         no mandatory delay, leaving no exit window for token holders.
      */
     function test_VULN3_noTimelock() public {
-        (uint256 proposalId, address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description) =
-            _createSimpleProposal();
+        (
+            uint256 proposalId,
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory description
+        ) = _createSimpleProposal();
 
         vm.roll(block.number + VOTING_DELAY + 1);
         vm.prank(user1);
@@ -522,8 +532,11 @@ contract GovernorVulnerableTest is Test {
 
         vm.roll(block.number + VOTING_PERIOD + 1);
 
-        assertEq(uint8(governor.state(id)), uint8(GovernorVulnerable.ProposalState.Succeeded),
-            "VULN-5: proposal succeeded with negligible participation");
+        assertEq(
+            uint8(governor.state(id)),
+            uint8(GovernorVulnerable.ProposalState.Succeeded),
+            "VULN-5: proposal succeeded with negligible participation"
+        );
     }
 
     // ── VULN-6: Reentrancy in execute ─────────────────────────────────────────
@@ -585,8 +598,13 @@ contract GovernorVulnerableTest is Test {
      *         voting period, nuking accumulated votes.
      */
     function test_VULN7_cancelDuringVoting() public {
-        (uint256 proposalId, address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description) =
-            _createSimpleProposal();
+        (
+            uint256 proposalId,
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory description
+        ) = _createSimpleProposal();
 
         vm.roll(block.number + VOTING_DELAY + 1);
         assertEq(uint8(governor.state(proposalId)), uint8(GovernorVulnerable.ProposalState.Active));
@@ -599,8 +617,11 @@ contract GovernorVulnerableTest is Test {
         vm.prank(user1);
         governor.cancel(targets, values, calldatas, keccak256(bytes(description)));
 
-        assertEq(uint8(governor.state(proposalId)), uint8(GovernorVulnerable.ProposalState.Canceled),
-            "VULN-7: proposer canceled mid-vote");
+        assertEq(
+            uint8(governor.state(proposalId)),
+            uint8(GovernorVulnerable.ProposalState.Canceled),
+            "VULN-7: proposer canceled mid-vote"
+        );
     }
 
     // ── VULN-8: Mismatched calldatas length ───────────────────────────────────
@@ -615,8 +636,13 @@ contract GovernorVulnerableTest is Test {
      *         is performed against stored proposal data during execution.
      */
     function test_VULN8_noLengthValidation() public {
-        (uint256 proposalId, address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description) =
-            _createSimpleProposal();
+        (
+            uint256 proposalId,
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory description
+        ) = _createSimpleProposal();
 
         vm.roll(block.number + VOTING_DELAY + 1);
         vm.prank(user1);
@@ -655,8 +681,13 @@ contract GovernorVulnerableTest is Test {
      * @notice Executing a defeated proposal reverts.
      */
     function test_execute_defeatedProposal_reverts() public {
-        (uint256 proposalId, address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description) =
-            _createSimpleProposal();
+        (
+            uint256 proposalId,
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory description
+        ) = _createSimpleProposal();
 
         vm.roll(block.number + VOTING_DELAY + 1);
         vm.prank(user1);

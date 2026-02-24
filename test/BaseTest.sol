@@ -105,11 +105,11 @@ contract BaseTest is Test {
         // 4. Wire Timelock roles.
         bytes32 proposerRole = timelock.PROPOSER_ROLE();
         bytes32 executorRole = timelock.EXECUTOR_ROLE();
-        bytes32 adminRole    = timelock.DEFAULT_ADMIN_ROLE();
+        bytes32 adminRole = timelock.DEFAULT_ADMIN_ROLE();
 
         timelock.grantRole(proposerRole, address(governor));
         timelock.grantRole(executorRole, address(0)); // anyone can execute when delay is met
-        timelock.revokeRole(adminRole, admin);        // revoke deployer admin for security
+        timelock.revokeRole(adminRole, admin); // revoke deployer admin for security
 
         // 5. Distribute tokens.
         require(token.transfer(user1, 10_000e18), "transfer failed");
