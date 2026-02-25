@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {GovernanceMath} from "../libraries/GovernanceMath.sol";
+import {ProposalLib} from "../libraries/ProposalLib.sol";
+
 /**
  * @title GovernorVulnerable
  * @dev Intentionally vulnerable governance contract for security research and attack simulation.
@@ -171,10 +174,10 @@ contract GovernorVulnerable {
         ProposalVotes storage v = _proposalVotes[proposalId];
 
         // VULN-5: quorumVotes == 0 means this condition is always met.
-        bool quorumReached = (v.forVotes + v.againstVotes + v.abstainVotes) >= quorumVotes;
+        bool quorumReached_ = GovernanceMath.quorumReached(v.forVotes, v.againstVotes, v.abstainVotes, quorumVotes);
 
         // VULN-7 (minor): strict > means ties go to Defeated, acceptable here.
-        bool votingSucceeded = quorumReached && (v.forVotes > v.againstVotes);
+        bool votingSucceeded = quorumReached_ && GovernanceMath.majorityReached(v.forVotes, v.againstVotes);
 
         return votingSucceeded ? ProposalState.Succeeded : ProposalState.Defeated;
     }
@@ -188,7 +191,7 @@ contract GovernorVulnerable {
         bytes[] memory calldatas,
         bytes32 descriptionHash
     ) public pure returns (uint256) {
-        return uint256(keccak256(abi.encode(targets, values, calldatas, descriptionHash)));
+        return ProposalLib.hashProposal(targets, values, calldatas, descriptionHash);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -211,10 +214,7 @@ contract GovernorVulnerable {
         // Safe version would be:
         //   require(TOKEN.getVotes(msg.sender) >= proposalThreshold, "below threshold");
 
-        bytes32 descriptionHash;
-        assembly ("memory-safe") {
-            descriptionHash := keccak256(add(description, 0x20), mload(description))
-        }
+        bytes32 descriptionHash = ProposalLib.hashDescription(description);
         proposalId = hashProposal(targets, values, calldatas, descriptionHash);
 
         require(_proposals[proposalId].voteStart == 0, "GovernorVulnerable: proposal already exists");
