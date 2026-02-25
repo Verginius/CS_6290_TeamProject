@@ -540,7 +540,11 @@ contract GovernorWithDefenses {
      * @return Minimum delegated vote weight required to call propose().
      */
     function proposalThreshold() public view returns (uint256) {
-        return GovernanceMath.applyBps(TOKEN.totalSupply(), proposalThresholdBps);
+        uint256 bps = proposalThresholdBps;
+        if (bps > 10_000) {
+            bps = 10_000;
+        }
+        return GovernanceMath.applyBps(TOKEN.totalSupply(), bps);
     }
 
     /**
