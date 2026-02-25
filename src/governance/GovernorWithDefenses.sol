@@ -2,6 +2,8 @@
 pragma solidity ^0.8.20;
 
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
+import {GovernanceMath} from "../libraries/GovernanceMath.sol";
+import {ProposalLib} from "../libraries/ProposalLib.sol";
 
 /**
  * @title GovernorWithDefenses
@@ -279,7 +281,7 @@ contract GovernorWithDefenses {
 
         if (p.queued) {
             // Governance_Spec §Expired: if timelock window has passed, proposal expires.
-            if (block.timestamp >= p.eta + GRACE_PERIOD) return ProposalState.Expired;
+            if (ProposalLib.isExpired(p.eta, GRACE_PERIOD)) return ProposalState.Expired;
             return ProposalState.Queued;
         }
 
@@ -290,8 +292,8 @@ contract GovernorWithDefenses {
         ProposalVotes storage v = _proposalVotes[proposalId];
 
         // FIX-5: require minimum participation before declaring Succeeded.
-        bool quorumReached = (v.forVotes + v.againstVotes + v.abstainVotes) >= quorumVotes();
-        bool votingSucceeded = quorumReached && (v.forVotes > v.againstVotes);
+        bool votingSucceeded =
+            GovernanceMath.proposalSucceeded(v.forVotes, v.againstVotes, v.abstainVotes, quorumVotes());
 
         return votingSucceeded ? ProposalState.Succeeded : ProposalState.Defeated;
     }
@@ -306,7 +308,7 @@ contract GovernorWithDefenses {
         bytes[] memory calldatas,
         bytes32 descriptionHash
     ) public pure returns (uint256) {
-        return uint256(keccak256(abi.encode(targets, values, calldatas, descriptionHash)));
+        return ProposalLib.hashProposal(targets, values, calldatas, descriptionHash);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -342,14 +344,9 @@ contract GovernorWithDefenses {
             "GovernorWithDefenses: proposer votes below threshold"
         );
 
-        require(targets.length == values.length, "GovernorWithDefenses: invalid proposal length");
-        require(targets.length == calldatas.length, "GovernorWithDefenses: invalid proposal length");
-        require(targets.length > 0, "GovernorWithDefenses: empty proposal");
+        ProposalLib.validateArrayLengths(targets, values, calldatas);
 
-        bytes32 descriptionHash;
-        assembly ("memory-safe") {
-            descriptionHash := keccak256(add(description, 0x20), mload(description))
-        }
+        bytes32 descriptionHash = ProposalLib.hashDescription(description);
         proposalId = hashProposal(targets, values, calldatas, descriptionHash);
 
         require(_proposals[proposalId].voteStart == 0, "GovernorWithDefenses: proposal already exists");
@@ -472,7 +469,7 @@ contract GovernorWithDefenses {
             delay
         );
 
-        uint256 eta = block.timestamp + delay;
+        uint256 eta = ProposalLib.computeEta(block.timestamp, delay);
         p.eta = eta; // store for Expired check
 
         // Record participation for dynamic quorum update.
@@ -543,7 +540,11 @@ contract GovernorWithDefenses {
      * @return Minimum delegated vote weight required to call propose().
      */
     function proposalThreshold() public view returns (uint256) {
-        return TOKEN.totalSupply() * proposalThresholdBps / 10_000;
+        uint256 bps = proposalThresholdBps;
+        if (bps > 10_000) {
+            bps = 10_000;
+        }
+        return GovernanceMath.applyBps(TOKEN.totalSupply(), bps);
     }
 
     /**
@@ -561,26 +562,9 @@ contract GovernorWithDefenses {
      * @return Minimum total participation (for+against+abstain) required.
      */
     function quorumVotes() public view returns (uint256) {
-        uint256 supply = TOKEN.totalSupply();
-        if (_recentParticipationBps.length == 0) {
-            return supply * quorumBps / 10_000;
-        }
-
-        // Average recent participation BPS.
-        uint256 sum;
-        for (uint256 i = 0; i < _recentParticipationBps.length; ++i) {
-            sum += _recentParticipationBps[i];
-        }
-        uint256 avgBps = sum / _recentParticipationBps.length;
-
-        // dynamic = avgBps * 70% + 500 (half-point of floor+ceiling).
-        uint256 dynamicBps = avgBps * 7000 / 10_000 + 500;
-
-        // Clamp to [MIN_QUORUM_BPS, MAX_QUORUM_BPS].
-        if (dynamicBps < MIN_QUORUM_BPS) dynamicBps = MIN_QUORUM_BPS;
-        if (dynamicBps > MAX_QUORUM_BPS) dynamicBps = MAX_QUORUM_BPS;
-
-        return supply * dynamicBps / 10_000;
+        return GovernanceMath.dynamicQuorum(
+            TOKEN.totalSupply(), _recentParticipationBps, quorumBps, MIN_QUORUM_BPS, MAX_QUORUM_BPS
+        );
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -714,19 +698,18 @@ contract GovernorWithDefenses {
      */
     function _recordParticipation(uint256 proposalId) internal {
         ProposalVotes storage v = _proposalVotes[proposalId];
-        uint256 totalVotes = v.forVotes + v.againstVotes + v.abstainVotes;
         uint256 supply = TOKEN.totalSupply();
 
-        uint256 participationBps = supply > 0 ? totalVotes * 10_000 / supply : 0;
+        uint256 bps = GovernanceMath.participationBps(v.forVotes, v.againstVotes, v.abstainVotes, supply);
 
         if (_recentParticipationBps.length < PARTICIPATION_WINDOW) {
-            _recentParticipationBps.push(participationBps);
+            _recentParticipationBps.push(bps);
         } else {
             // Rotate: shift left and append.
             for (uint256 i = 0; i + 1 < _recentParticipationBps.length; ++i) {
                 _recentParticipationBps[i] = _recentParticipationBps[i + 1];
             }
-            _recentParticipationBps[_recentParticipationBps.length - 1] = participationBps;
+            _recentParticipationBps[_recentParticipationBps.length - 1] = bps;
         }
     }
 
