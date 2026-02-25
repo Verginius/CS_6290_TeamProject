@@ -158,6 +158,7 @@ library VotingPower {
      * @return               `true` if the proposer meets the BPS threshold.
      */
     function meetsThresholdBps(IVotesView token, address account, uint256 thresholdBps) internal view returns (bool) {
+        require(thresholdBps <= BPS_DENOMINATOR, "VotingPower: thresholdBps > 100%");
         uint256 checkBlock = block.number > 0 ? block.number - 1 : 0;
         uint256 supply = token.getPastTotalSupply(checkBlock);
         uint256 absThreshold = (supply * thresholdBps) / BPS_DENOMINATOR;
@@ -177,6 +178,7 @@ library VotingPower {
      * @return absolute      Minimum delegated-vote weight required (token-wei).
      */
     function absoluteThreshold(IVotesView token, uint256 thresholdBps) internal view returns (uint256 absolute) {
+        require(thresholdBps <= BPS_DENOMINATOR, "VotingPower: thresholdBps > 100%");
         return (token.totalSupply() * thresholdBps) / BPS_DENOMINATOR;
     }
 

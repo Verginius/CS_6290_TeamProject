@@ -110,6 +110,7 @@ library GovernanceMath {
      * @return        Clamped value.
      */
     function clamp(uint256 value, uint256 lo, uint256 hi) internal pure returns (uint256) {
+        require(hi >= lo, "GovernanceMath: hi < lo");
         if (value < lo) return lo;
         if (value > hi) return hi;
         return value;
@@ -249,6 +250,7 @@ library GovernanceMath {
         pure
         returns (bool)
     {
+        require(thresholdBps <= BPS_DENOMINATOR, "GovernanceMath: thresholdBps > 100%");
         uint256 totalCast = forVotes + againstVotes;
         if (totalCast == 0) return false;
         // forVotes / totalCast >= thresholdBps / 10_000
