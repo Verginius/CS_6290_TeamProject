@@ -70,7 +70,7 @@ contract Timelock {
     /// @notice Recommended bounds (Defense_Mechanisms.md § 1.2 Configuration).
     uint256 public constant MINIMUM_VOTING_PERIOD = 3 days; // 21,600 blocks
     uint256 public constant MAXIMUM_VOTING_PERIOD = 14 days; // 100,800 blocks
-    uint256 public constant DEFAULT_VOTING_PERIOD = 7 days;   // 50,400 blocks
+    uint256 public constant DEFAULT_VOTING_PERIOD = 7 days; // 50,400 blocks
 
     /// @notice Returns the timestamp when voting ends for a proposal created at `createdAt`.
     function getVoteEndTime(uint256 createdAt) external view returns (uint256) {
@@ -99,30 +99,15 @@ contract Timelock {
     // ─────────────────────────────────────────────────────────────────────────
 
     event QueueTransaction(
-        bytes32 indexed txHash,
-        address indexed target,
-        uint256 value,
-        string signature,
-        bytes data,
-        uint256 eta
+        bytes32 indexed txHash, address indexed target, uint256 value, string signature, bytes data, uint256 eta
     );
 
     event ExecuteTransaction(
-        bytes32 indexed txHash,
-        address indexed target,
-        uint256 value,
-        string signature,
-        bytes data,
-        uint256 eta
+        bytes32 indexed txHash, address indexed target, uint256 value, string signature, bytes data, uint256 eta
     );
 
     event CancelTransaction(
-        bytes32 indexed txHash,
-        address indexed target,
-        uint256 value,
-        string signature,
-        bytes data,
-        uint256 eta
+        bytes32 indexed txHash, address indexed target, uint256 value, string signature, bytes data, uint256 eta
     );
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -132,22 +117,18 @@ contract Timelock {
     /// @notice Phases of the time-based defense flow (doc § Time-Based Defense Summary).
     enum Phase {
         VotingDelay, // 0 — Proposal created; before voteStart (review period)
-        VotingPeriod,// 1 — Between voteStart and voteEnd (votes can be cast)
-        Passed,      // 2 — After voteEnd (success), not yet queued
-        Queued,      // 3 — Queued in timelock, before ETA
-        Executable,  // 4 — After ETA, within grace period
-        Expired      // 5 — After ETA + GRACE_PERIOD or already executed
+        VotingPeriod, // 1 — Between voteStart and voteEnd (votes can be cast)
+        Passed, // 2 — After voteEnd (success), not yet queued
+        Queued, // 3 — Queued in timelock, before ETA
+        Executable, // 4 — After ETA, within grace period
+        Expired // 5 — After ETA + GRACE_PERIOD or already executed
     }
 
     /// @notice Returns the current phase for a proposal (by timestamps) and whether it is queued/executed.
     /// @param  createdAt  When the proposal was created (Part 1 start).
     /// @param  eta        ETA of the queued timelock operation (0 if not queued).
     /// @param  executed   True if the timelock action has already been executed.
-    function getPhase(
-        uint256 createdAt,
-        uint256 eta,
-        bool executed
-    ) external view returns (Phase) {
+    function getPhase(uint256 createdAt, uint256 eta, bool executed) external view returns (Phase) {
         if (executed) return Phase.Expired; // already done
 
         uint256 voteStart = createdAt + votingDelay;
@@ -178,15 +159,15 @@ contract Timelock {
     /// @param _votingDelay   Part 1: seconds before voting starts (MINIMUM_VOTING_DELAY .. MAXIMUM_VOTING_DELAY).
     /// @param _votingPeriod  Part 2: seconds voting is open (MINIMUM_VOTING_PERIOD .. MAXIMUM_VOTING_PERIOD).
     /// @param _delay         Part 3: timelock delay (MINIMUM_DELAY .. MAXIMUM_DELAY).
-    constructor(
-        address _admin,
-        uint256 _votingDelay,
-        uint256 _votingPeriod,
-        uint256 _delay
-    ) {
+    constructor(address _admin, uint256 _votingDelay, uint256 _votingPeriod, uint256 _delay) {
         require(_admin != address(0), "Timelock: zero admin");
-        require(_votingDelay >= MINIMUM_VOTING_DELAY && _votingDelay <= MAXIMUM_VOTING_DELAY, "Timelock: bad voting delay");
-        require(_votingPeriod >= MINIMUM_VOTING_PERIOD && _votingPeriod <= MAXIMUM_VOTING_PERIOD, "Timelock: bad voting period");
+        require(
+            _votingDelay >= MINIMUM_VOTING_DELAY && _votingDelay <= MAXIMUM_VOTING_DELAY, "Timelock: bad voting delay"
+        );
+        require(
+            _votingPeriod >= MINIMUM_VOTING_PERIOD && _votingPeriod <= MAXIMUM_VOTING_PERIOD,
+            "Timelock: bad voting period"
+        );
         require(_delay >= MINIMUM_DELAY && _delay <= MAXIMUM_DELAY, "Timelock: bad delay");
 
         admin = _admin;
@@ -210,13 +191,11 @@ contract Timelock {
     // ─────────────────────────────────────────────────────────────────────────
 
     /// @notice Queue a transaction for execution after the timelock delay (ETA = now + delay).
-    function queueTransaction(
-        address target,
-        uint256 value,
-        string memory signature,
-        bytes memory data,
-        uint256 eta
-    ) public onlyAdmin returns (bytes32 txHash) {
+    function queueTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 eta)
+        public
+        onlyAdmin
+        returns (bytes32 txHash)
+    {
         require(eta > block.timestamp + delay, "Timelock: ETA must exceed delay");
 
         txHash = keccak256(abi.encode(target, value, signature, data, eta));
@@ -226,14 +205,12 @@ contract Timelock {
     }
 
     /// @notice Execute a queued transaction once ETA has been reached and before grace period expiry.
-    function executeTransaction(
-        address target,
-        uint256 value,
-        string memory signature,
-        bytes memory data,
-        uint256 eta
-    ) public payable onlyAdmin returns (bytes memory returnData) {
-
+    function executeTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 eta)
+        public
+        payable
+        onlyAdmin
+        returns (bytes memory returnData)
+    {
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         require(queuedTransactions[txHash], "Timelock: transaction not queued");
         require(block.timestamp >= eta, "Timelock: transaction not ready");
@@ -256,13 +233,10 @@ contract Timelock {
     }
 
     /// @notice Cancel a queued transaction (admin only).
-    function cancelTransaction(
-        address target,
-        uint256 value,
-        string memory signature,
-        bytes memory data,
-        uint256 eta
-    ) public onlyAdmin {
+    function cancelTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 eta)
+        public
+        onlyAdmin
+    {
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         require(queuedTransactions[txHash], "Timelock: transaction not queued");
 
@@ -272,13 +246,11 @@ contract Timelock {
     }
 
     /// @notice Returns the unique id for a transaction (same params as queue/execute/cancel).
-    function getTransactionHash(
-        address target,
-        uint256 value,
-        string memory signature,
-        bytes memory data,
-        uint256 eta
-    ) external pure returns (bytes32) {
+    function getTransactionHash(address target, uint256 value, string memory signature, bytes memory data, uint256 eta)
+        external
+        pure
+        returns (bytes32)
+    {
         return keccak256(abi.encode(target, value, signature, data, eta));
     }
 }
@@ -297,11 +269,7 @@ library TimeBasedDefenseConfig {
 
     /// @notice Standard: ~11 days minimum to execution (doc Summary).
     function standard() internal pure returns (Config memory) {
-        return Config({
-            votingDelay: 2 days,
-            votingPeriod: 7 days,
-            timelockDelay: 48 hours
-        });
+        return Config({votingDelay: 2 days, votingPeriod: 7 days, timelockDelay: 48 hours});
     }
 
     /// @notice Timelock-only presets by protocol size (§ 1.3 Configuration).
@@ -312,18 +280,10 @@ library TimeBasedDefenseConfig {
     }
 
     function smallTimelock() internal pure returns (TimelockOnlyConfig memory) {
-        return TimelockOnlyConfig({
-            minDelay: 24 hours,
-            normalDelay: 48 hours,
-            criticalDelay: 72 hours
-        });
+        return TimelockOnlyConfig({minDelay: 24 hours, normalDelay: 48 hours, criticalDelay: 72 hours});
     }
 
     function largeTimelock() internal pure returns (TimelockOnlyConfig memory) {
-        return TimelockOnlyConfig({
-            minDelay: 48 hours,
-            normalDelay: 72 hours,
-            criticalDelay: 168 hours
-        });
+        return TimelockOnlyConfig({minDelay: 48 hours, normalDelay: 72 hours, criticalDelay: 168 hours});
     }
 }
