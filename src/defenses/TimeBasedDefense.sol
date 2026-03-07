@@ -196,10 +196,9 @@ contract Timelock {
         onlyAdmin
         returns (bytes32 txHash)
     {
-        require(eta >= block.timestamp + delay, "Timelock: ETA must satisfy minimum delay");
+        require(eta > block.timestamp + delay, "Timelock: ETA must exceed delay");
 
         txHash = keccak256(abi.encode(target, value, signature, data, eta));
-        require(!queuedTransactions[txHash], "Timelock: transaction already queued");
         queuedTransactions[txHash] = true;
 
         emit QueueTransaction(txHash, target, value, signature, data, eta);
