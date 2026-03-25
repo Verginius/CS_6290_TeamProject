@@ -86,39 +86,21 @@ contract SimulateAttacks is Script {
         address mockTreasury,
         address flashLoanProvider
     ) internal {
-        try {
-            FlashLoanAttack attack = new FlashLoanAttack(flashLoanProvider, govToken, governor, mockTreasury);
-            console.log("Executing attack...");
-            bool success = attack.executeAttack(FLASH_LOAN_AMOUNT, HALF_TREASURY);
-            console.log("Attack execution result: ", success);
-            uint256 stolenAmount = attack.getStolenAmount();
-            bool attackSucceeded = attack.wasAttackSuccessful();
-            console.log("Stolen amount: ", stolenAmount);
-            console.log("Attack succeeded: ", attackSucceeded);
-            results.push(AttackResult({
-                attackName: "Flash Loan Attack",
-                succeeded: attackSucceeded,
-                amountExtracted: stolenAmount,
-                details: "Borrowed tokens, voted, executed proposal"
-            }));
-            console.log("PASS: Flash Loan Attack completed");
-        } catch Error(string memory reason) {
-            console.log("FAIL: Flash Loan Attack failed with reason:", reason);
-            results.push(AttackResult({
-                attackName: "Flash Loan Attack",
-                succeeded: false,
-                amountExtracted: 0,
-                details: string(abi.encodePacked("Error: ", reason))
-            }));
-        } catch {
-            console.log("FAIL: Flash Loan Attack failed");
-            results.push(AttackResult({
-                attackName: "Flash Loan Attack",
-                succeeded: false,
-                amountExtracted: 0,
-                details: "Unknown error"
-            }));
-        }
+        FlashLoanAttack attack = new FlashLoanAttack(flashLoanProvider, govToken, governor, mockTreasury);
+        console.log("Executing attack...");
+        bool success = attack.executeAttack(FLASH_LOAN_AMOUNT, HALF_TREASURY);
+        console.log("Attack execution result: ", success);
+        uint256 stolenAmount = attack.getStolenAmount();
+        bool attackSucceeded = attack.wasAttackSuccessful();
+        console.log("Stolen amount: ", stolenAmount);
+        console.log("Attack succeeded: ", attackSucceeded);
+        results.push(AttackResult({
+            attackName: "Flash Loan Attack",
+            succeeded: attackSucceeded,
+            amountExtracted: stolenAmount,
+            details: "Borrowed tokens, voted, executed proposal"
+        }));
+        console.log("PASS: Flash Loan Attack completed");
     }
 
     function _simulateWhaleManipulation(
@@ -127,110 +109,48 @@ contract SimulateAttacks is Script {
         address mockTreasury
     ) internal {
         console.log("[2] Whale Manipulation");
-
-        try {
-            WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
-
-            address whale = address(0xDEADBEEF);
-
-            GovernanceToken(govToken).mint(whale, 600_000_000e18);
-
-            console.log("Created whale with 60% voting power");
-
-            bool success = attack.executeWhaleAttack(whale, WHALE_ATTACK_DRAIN);
-
-            console.log("Attack execution result: ", success);
-
-            uint256 stolenAmount = attack.getAmountStolen();
-            bool succeeded = attack.wasAttackSuccessful();
-
-            console.log("Stolen amount: ", stolenAmount);
-            console.log("Attack succeeded: ", succeeded);
-
-            results.push(
-                AttackResult({
-                    attackName: "Whale Manipulation",
-                    succeeded: succeeded,
-                    amountExtracted: stolenAmount,
-                    details: "Whale with 60% voting power passed self-serving proposal"
-                })
-            );
-
-            console.log("PASS: Whale Manipulation completed");
-        } catch Error(string memory reason) {
-            console.log("FAIL: Whale Manipulation failed with reason:", reason);
-            results.push(
-                AttackResult({
-                    attackName: "Whale Manipulation",
-                    succeeded: false,
-                    amountExtracted: 0,
-                    details: string(abi.encodePacked("Error: ", reason))
-                })
-            );
-        } catch {
-            console.log("FAIL: Whale Manipulation failed");
-            results.push(
-                AttackResult({
-                    attackName: "Whale Manipulation",
-                    succeeded: false,
-                    amountExtracted: 0,
-                    details: "Unknown error"
-                })
-            );
-        }
+        WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
+        address whale = address(0xDEADBEEF);
+        GovernanceToken(govToken).mint(whale, 600_000_000e18);
+        console.log("Created whale with 60% voting power");
+        bool success = attack.executeWhaleAttack(whale, WHALE_ATTACK_DRAIN);
+        console.log("Attack execution result: ", success);
+        uint256 stolenAmount = attack.getAmountStolen();
+        bool succeeded = attack.wasAttackSuccessful();
+        console.log("Stolen amount: ", stolenAmount);
+        console.log("Attack succeeded: ", succeeded);
+        results.push(
+            AttackResult({
+                attackName: "Whale Manipulation",
+                succeeded: succeeded,
+                amountExtracted: stolenAmount,
+                details: "Whale with 60% voting power passed self-serving proposal"
+            })
+        );
+        console.log("PASS: Whale Manipulation completed");
     }
 
     function _simulateProposalSpam(address governor) internal {
         console.log("[3] Proposal Spam");
-
-        try {
-            ProposalSpam attack = new ProposalSpam(governor);
-
-            console.log("Creating spam proposals (50)...");
-
-            uint256 spamCount = attack.executeSpamAttack(50);
-
-            console.log("Spam proposals created: ", spamCount);
-
-            (uint256 total, uint256 percent, uint256 fatigue, uint256 difficulty) =
-                attack.analyzeAttackEffectiveness();
-
-            console.log("Total proposals: ", total);
-            console.log("Percent malicious: ", percent);
-            console.log("Estimated voter fatigue (bps): ", fatigue);
-            console.log("Detection difficulty: ", difficulty);
-
-            results.push(
-                AttackResult({
-                    attackName: "Proposal Spam",
-                    succeeded: spamCount > 0,
-                    amountExtracted: spamCount,
-                    details: string(abi.encodePacked("Created ", _uint2str(spamCount), " spam proposals"))
-                })
-            );
-
-            console.log("PASS: Proposal Spam completed");
-        } catch Error(string memory reason) {
-            console.log("FAIL: Proposal Spam failed with reason:", reason);
-            results.push(
-                AttackResult({
-                    attackName: "Proposal Spam",
-                    succeeded: false,
-                    amountExtracted: 0,
-                    details: string(abi.encodePacked("Error: ", reason))
-                })
-            );
-        } catch {
-            console.log("FAIL: Proposal Spam failed");
-            results.push(
-                AttackResult({
-                    attackName: "Proposal Spam",
-                    succeeded: false,
-                    amountExtracted: 0,
-                    details: "Unknown error"
-                })
-            );
-        }
+        ProposalSpam attack = new ProposalSpam(governor);
+        console.log("Creating spam proposals (50)...");
+        uint256 spamCount = attack.executeSpamAttack(50);
+        console.log("Spam proposals created: ", spamCount);
+        (uint256 total, uint256 percent, uint256 fatigue, uint256 difficulty) =
+            attack.analyzeAttackEffectiveness();
+        console.log("Total proposals: ", total);
+        console.log("Percent malicious: ", percent);
+        console.log("Estimated voter fatigue (bps): ", fatigue);
+        console.log("Detection difficulty: ", difficulty);
+        results.push(
+            AttackResult({
+                attackName: "Proposal Spam",
+                succeeded: spamCount > 0,
+                amountExtracted: spamCount,
+                details: string(abi.encodePacked("Created ", _uint2str(spamCount), " spam proposals"))
+            })
+        );
+        console.log("PASS: Proposal Spam completed");
     }
 
     function _simulateQuorumManipulation(
@@ -239,110 +159,48 @@ contract SimulateAttacks is Script {
         address mockTreasury
     ) internal {
         console.log("[4] Quorum Manipulation");
-
-        try {
-            QuorumManipulation attack = new QuorumManipulation(govToken, governor, mockTreasury);
-
-            console.log("Simulating low-participation window attack...");
-
-            uint256 proposalId = attack.executeTimingAttack(WHALE_ATTACK_DRAIN, 500);
-
-            console.log("Proposal ID created: ", proposalId);
-
-            bool succeeded = attack.wasAttackSuccessful();
-            uint256 bypassed = attack.getBypassAmount();
-
-            console.log("Attack succeeded: ", succeeded);
-            console.log("Amount bypassed quorum: ", bypassed);
-
-            results.push(
-                AttackResult({
-                    attackName: "Quorum Manipulation",
-                    succeeded: succeeded,
-                    amountExtracted: bypassed,
-                    details: "Timed attack during low-participation window (5%)"
-                })
-            );
-
-            console.log("PASS: Quorum Manipulation completed");
-        } catch Error(string memory reason) {
-            console.log("FAIL: Quorum Manipulation failed with reason:", reason);
-            results.push(
-                AttackResult({
-                    attackName: "Quorum Manipulation",
-                    succeeded: false,
-                    amountExtracted: 0,
-                    details: string(abi.encodePacked("Error: ", reason))
-                })
-            );
-        } catch {
-            console.log("FAIL: Quorum Manipulation failed");
-            results.push(
-                AttackResult({
-                    attackName: "Quorum Manipulation",
-                    succeeded: false,
-                    amountExtracted: 0,
-                    details: "Unknown error"
-                })
-            );
-        }
+        QuorumManipulation attack = new QuorumManipulation(govToken, governor, mockTreasury);
+        console.log("Simulating low-participation window attack...");
+        uint256 proposalId = attack.executeTimingAttack(WHALE_ATTACK_DRAIN, 500);
+        console.log("Proposal ID created: ", proposalId);
+        bool succeeded = attack.wasAttackSuccessful();
+        uint256 bypassed = attack.getBypassAmount();
+        console.log("Attack succeeded: ", succeeded);
+        console.log("Amount bypassed quorum: ", bypassed);
+        results.push(
+            AttackResult({
+                attackName: "Quorum Manipulation",
+                succeeded: succeeded,
+                amountExtracted: bypassed,
+                details: "Timed attack during low-participation window (5%)"
+            })
+        );
+        console.log("PASS: Quorum Manipulation completed");
     }
 
     function _simulateTimelockExploit(address governor, address mockTreasury)
         internal
     {
         console.log("[5] Timelock Exploit");
-
-        try {
-            TimelockExploit attack = new TimelockExploit(governor, address(0), mockTreasury);
-
-            console.log("Identifying timelock vulnerabilities...");
-
-            uint256 delay = attack.identifyTimelockVulnerabilities();
-
-            console.log("Timelock delay identified: ", delay, " seconds");
-
-            bool success = attack.executeEmergencyFunctionBypass("emergencyWithdraw", 100_000e18);
-
-            console.log("Emergency function bypass result: ", success);
-
-            bool succeeded = attack.wasAttackSuccessful();
-            uint256 stolen = attack.getAmountStolen();
-
-            console.log("Attack succeeded: ", succeeded);
-            console.log("Amount stolen: ", stolen);
-
-            results.push(
-                AttackResult({
-                    attackName: "Timelock Exploit",
-                    succeeded: succeeded,
-                    amountExtracted: stolen,
-                    details: "Attempted emergency function bypass"
-                })
-            );
-
-            console.log("PASS: Timelock Exploit completed");
-        } catch Error(string memory reason) {
-            console.log("FAIL: Timelock Exploit failed with reason:", reason);
-            results.push(
-                AttackResult({
-                    attackName: "Timelock Exploit",
-                    succeeded: false,
-                    amountExtracted: 0,
-                    details: string(abi.encodePacked("Error: ", reason))
-                })
-            );
-        } catch {
-            console.log("FAIL: Timelock Exploit failed");
-            results.push(
-                AttackResult({
-                    attackName: "Timelock Exploit",
-                    succeeded: false,
-                    amountExtracted: 0,
-                    details: "Unknown error"
-                })
-            );
-        }
+        TimelockExploit attack = new TimelockExploit(governor, address(0), mockTreasury);
+        console.log("Identifying timelock vulnerabilities...");
+        uint256 delay = attack.identifyTimelockVulnerabilities();
+        console.log("Timelock delay identified: ", delay, " seconds");
+        bool success = attack.executeEmergencyFunctionBypass("emergencyWithdraw", 100_000e18);
+        console.log("Emergency function bypass result: ", success);
+        bool succeeded = attack.wasAttackSuccessful();
+        uint256 stolen = attack.getAmountStolen();
+        console.log("Attack succeeded: ", succeeded);
+        console.log("Amount stolen: ", stolen);
+        results.push(
+            AttackResult({
+                attackName: "Timelock Exploit",
+                succeeded: succeeded,
+                amountExtracted: stolen,
+                details: "Attempted emergency function bypass"
+            })
+        );
+        console.log("PASS: Timelock Exploit completed");
     }
 
     // Result Reporting
