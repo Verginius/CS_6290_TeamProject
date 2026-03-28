@@ -205,15 +205,15 @@ Overall Success Rate:  80 %
 
 ### 4. ExportData.s.sol
 
-**Purpose:** Parse attack simulation results and export to JSON format for frontend/analysis pipeline.
+**Purpose:** Export real simulation output from raw JSON to processed JSON for frontend/analysis pipeline.
 
 **Output Format:**
 
 ```json
 {
   "metadata": {
-    "timestamp": "2024-01-01T00:00:00Z",
-    "network": "mainnet-fork",
+    "timestamp": "1711600000",
+    "chainId": 31337,
     "totalAttacks": 5
   },
   "attacks": [
@@ -222,30 +222,20 @@ Overall Success Rate:  80 %
       "name": "Flash Loan Attack",
       "succeeded": true,
       "amountExtracted": "500000000000000000000000000",
-      "estimatedCost": 450000,
-      "estimatedProfitability": "1111111.11",
-      "riskLevel": "CRITICAL",
-      "details": "Beanstalk-style attack using flash loans..."
+      "details": "Borrowed tokens, voted, executed proposal"
     },
     {
-      "id": 2,
       "name": "Whale Manipulation",
       "succeeded": true,
       "amountExtracted": "60000000000000000000000000",
-      "estimatedCost": 50000,
-      "estimatedProfitability": "1200000.00",
-      "riskLevel": "HIGH",
-      "details": "..."
+      "details": "Whale directly voted then executed self-serving proposal"
     },
     ...
   ],
   "summary": {
     "totalSuccessful": 4,
     "successRate": 80,
-    "totalExtracted": "1,061,000,000000000000000000",
-    "averageCost": 226000,
-    "highestRiskAttack": "CRITICAL",
-    "lowestCostAttack": "Whale Manipulation"
+    "totalExtracted": "1061000000000000000000000000"
   }
 }
 ```
@@ -253,11 +243,11 @@ Overall Success Rate:  80 %
 **Usage:**
 
 ```bash
-# Export data to console (for viewing/piping)
+# Export processed JSON from default raw file
 forge script script/ExportData.s.sol:ExportData --fork-url http://localhost:8545
 
-# Export and save to file
-forge script script/ExportData.s.sol:ExportData --fork-url http://localhost:8545 > results.json
+# Or use a custom raw input file
+RAW_INPUT_FILE=./analysis/data/raw/attack_simulation_raw.json forge script script/ExportData.s.sol:ExportData --fork-url http://localhost:8545
 ```
 
 **Output File Location:**
@@ -279,6 +269,10 @@ anvil --fork-url https://eth-mainnet.alchemyapi.io/v2/YOUR_API_KEY
 ```bash
 # Terminal 2: Deploy
 forge script script/Deploy.s.sol:Deploy --fork-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb476c6b8d8c6a5c97bad9a1d96a5
+
+# Auto-generated artifacts after deploy:
+# 1) analysis/data/raw/deployment_addresses.json
+# 2) .env.simulation
 ```
 
 ### Step 3: Setup Scenario
@@ -294,12 +288,22 @@ SCENARIO=D forge script script/SetupScenarios.s.sol:SetupScenarios --fork-url ht
 ```bash
 # Run all attack simulations
 forge script script/SimulateAttacks.s.sol:SimulateAttacks --fork-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb476c6b8d8c6a5c97bad9a1d96a5
+
+# Required env variables example:
+# GOV_TOKEN_ADDRESS
+# GOVERNOR_VULNERABLE_ADDRESS
+# MOCK_TREASURY_ADDRESS
+# FLASH_LOAN_PROVIDER_ADDRESS
+# TIMELOCK_ADDRESS (preferred; TIMELOCK is still accepted for backward compatibility)
+
+# Optional: load values from generated env file before running
+# source .env.simulation
 ```
 
 ### Step 5: Export Results
 ```bash
-# Export attack data to JSON
-forge script script/ExportData.s.sol:ExportData --fork-url http://localhost:8545 > analysis/data/processed/attack_results.json
+# Export raw simulation output into processed JSON path
+forge script script/ExportData.s.sol:ExportData --fork-url http://localhost:8545
 ```
 
 ### Step 6: Analyze
@@ -362,6 +366,10 @@ Each JSON file contains:
 
 ### Analysis Output
 ```
+analysis/data/raw/
+├── deployment_addresses.json
+└── attack_simulation_raw.json
+
 analysis/data/processed/
 ├── attack_simulation_results.json
 ├── vulnerability_metrics.json
@@ -382,6 +390,8 @@ analysis/data/processed/
 ### Issue: Contract addresses not found
 **Solution:**
 - Check broadcast/ directory for previous deployments
+- Check generated file: `analysis/data/raw/deployment_addresses.json`
+- Check generated env: `.env.simulation`
 - Verify RPC connection: `curl http://localhost:8545 -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}'`
 - Run Deploy.s.sol first
 

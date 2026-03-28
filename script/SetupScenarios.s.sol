@@ -194,7 +194,7 @@ contract SetupScenarios is Script {
         if (_stringsEqual(selectedScenario.tokenDistribution, "whale")) {
             address whale = address(0xDEADBEEF);
             uint256 whaleAmount = (TOTAL_SUPPLY * 60) / 100;
-            token.mint(whale, whaleAmount);
+            require(token.transfer(whale, whaleAmount), "transfer whale failed");
             console.log("  Whale receives:", whaleAmount / 1e18, "tokens (60%)");
         } else if (_stringsEqual(selectedScenario.tokenDistribution, "top3")) {
             address[] memory whales = new address[](3);
@@ -206,9 +206,9 @@ contract SetupScenarios is Script {
             uint256 whale2Amount = (TOTAL_SUPPLY * 27) / 100;
             uint256 whale3Amount = (TOTAL_SUPPLY * 26) / 100;
 
-            token.mint(whales[0], whale1Amount);
-            token.mint(whales[1], whale2Amount);
-            token.mint(whales[2], whale3Amount);
+            require(token.transfer(whales[0], whale1Amount), "transfer whale1 failed");
+            require(token.transfer(whales[1], whale2Amount), "transfer whale2 failed");
+            require(token.transfer(whales[2], whale3Amount), "transfer whale3 failed");
 
             console.log("  Whale 1:", whale1Amount / 1e18, "tokens (27%)");
             console.log("  Whale 2:", whale2Amount / 1e18, "tokens (27%)");
@@ -220,7 +220,7 @@ contract SetupScenarios is Script {
                 // casting to 'uint160' is safe because generated addresses use small bounded constants
                 // forge-lint: disable-next-line(unsafe-typecast)
                 address recipient = address(uint160(0x1000 + i));
-                token.mint(recipient, amountPerAddress);
+                require(token.transfer(recipient, amountPerAddress), "transfer distributed failed");
             }
 
             console.log("  100 addresses receive:", amountPerAddress / 1e18, "tokens each");
@@ -245,7 +245,7 @@ contract SetupScenarios is Script {
                     amount = (avgAmount * 5) / 10;
                 }
 
-                token.mint(recipient, amount);
+                require(token.transfer(recipient, amount), "transfer gaussian failed");
             }
 
             console.log("  50 addresses with Gaussian distribution");
@@ -259,7 +259,7 @@ contract SetupScenarios is Script {
                 // casting to 'uint160' is safe because generated addresses use small bounded constants
                 // forge-lint: disable-next-line(unsafe-typecast)
                 address recipient = address(uint160(0x3000 + i));
-                token.mint(recipient, amountPerAddress);
+                require(token.transfer(recipient, amountPerAddress), "transfer equal failed");
             }
         }
 
@@ -276,7 +276,14 @@ contract SetupScenarios is Script {
         console.log("PASS: Mock Treasury deployed at:", address(treasury));
 
         GovernanceToken token = GovernanceToken(deployedContracts.govToken);
-        uint256 treasuryFunds = TOTAL_SUPPLY / 10;
+        uint256 targetTreasuryFunds = TOTAL_SUPPLY / 10;
+        uint256 available = token.balanceOf(msg.sender);
+        uint256 treasuryFunds = available < targetTreasuryFunds ? available : targetTreasuryFunds;
+
+        if (treasuryFunds == 0) {
+            console.log("WARN: No remaining admin balance to fund treasury in this scenario");
+            return;
+        }
 
         token.approve(address(treasury), treasuryFunds);
         treasury.depositToken(address(token), treasuryFunds);

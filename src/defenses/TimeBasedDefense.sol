@@ -182,8 +182,12 @@ contract Timelock {
 
     /// @notice Restricts function access to the admin address.
     modifier onlyAdmin() {
-        require(msg.sender == admin, "Timelock: only admin");
+        _onlyAdmin();
         _;
+    }
+
+    function _onlyAdmin() internal view {
+        require(msg.sender == admin, "Timelock: only admin");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -198,6 +202,7 @@ contract Timelock {
     {
         require(eta > block.timestamp + delay, "Timelock: ETA must exceed delay");
 
+        // forge-lint: disable-next-line(asm-keccak256)
         txHash = keccak256(abi.encode(target, value, signature, data, eta));
         queuedTransactions[txHash] = true;
 
@@ -211,6 +216,7 @@ contract Timelock {
         onlyAdmin
         returns (bytes memory returnData)
     {
+        // forge-lint: disable-next-line(asm-keccak256)
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         require(queuedTransactions[txHash], "Timelock: transaction not queued");
         require(block.timestamp >= eta, "Timelock: transaction not ready");
@@ -237,6 +243,7 @@ contract Timelock {
         public
         onlyAdmin
     {
+        // forge-lint: disable-next-line(asm-keccak256)
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         require(queuedTransactions[txHash], "Timelock: transaction not queued");
 
@@ -251,6 +258,7 @@ contract Timelock {
         pure
         returns (bytes32)
     {
+        // forge-lint: disable-next-line(asm-keccak256)
         return keccak256(abi.encode(target, value, signature, data, eta));
     }
 }

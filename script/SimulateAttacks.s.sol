@@ -35,6 +35,7 @@ contract SimulateAttacks is Script {
     uint256 private constant FLASH_LOAN_AMOUNT = 500_000_000e18;
     uint256 private constant HALF_TREASURY = 5_000_000e18;
     uint256 private constant WHALE_ATTACK_DRAIN = 1_000_000e18;
+    string private constant RAW_OUTPUT_FILE = "./analysis/data/raw/attack_simulation_raw.json";
 
     // Main Simulation Function
     function run() external {
@@ -66,6 +67,7 @@ contract SimulateAttacks is Script {
 
         // Print results
         _printResults();
+        _writeRawResults();
     }
 
     // Attack Simulation Functions
@@ -110,7 +112,7 @@ contract SimulateAttacks is Script {
         GovernorVulnerable gov = GovernorVulnerable(payable(governor));
         address whale = address(0xDEADBEEF);
 
-        GovernanceToken(govToken).transfer(whale, 600_000_000e18);
+        require(GovernanceToken(govToken).transfer(whale, 600_000_000e18), "transfer to whale failed");
         vm.prank(whale);
         GovernanceToken(govToken).delegate(whale);
 
@@ -191,7 +193,8 @@ contract SimulateAttacks is Script {
 
     function _simulateTimelockExploit(address governor, address mockTreasury) internal {
         console.log("[5] Timelock Exploit");
-        address timelock = vm.envAddress("TIMELOCK");
+        address timelock =
+            vm.envExists("TIMELOCK_ADDRESS") ? vm.envAddress("TIMELOCK_ADDRESS") : vm.envAddress("TIMELOCK");
         TimelockExploit attack = new TimelockExploit(governor, timelock, mockTreasury);
         console.log("Identifying timelock vulnerabilities...");
         uint256 delay = attack.identifyTimelockVulnerabilities();
@@ -232,6 +235,91 @@ contract SimulateAttacks is Script {
         }
 
         console.log("Overall Success Rate: ", (successCount * 100) / results.length, "%");
+    }
+
+    function _writeRawResults() internal {
+        string memory json = _buildRawJson();
+        // forge-lint: disable-next-line(unsafe-cheatcode)
+        vm.writeFile(RAW_OUTPUT_FILE, json);
+        console.log("Raw simulation JSON written to:", RAW_OUTPUT_FILE);
+    }
+
+    function _buildRawJson() internal view returns (string memory json) {
+        uint256 successCount = 0;
+        uint256 totalExtracted = 0;
+
+        for (uint256 i = 0; i < results.length; i++) {
+            if (results[i].succeeded) {
+                successCount++;
+            }
+            totalExtracted += results[i].amountExtracted;
+        }
+
+        uint256 successRate = results.length == 0 ? 0 : (successCount * 100) / results.length;
+
+        json = string(
+            abi.encodePacked(
+                "{\n",
+                '  "metadata": {\n',
+                '    "timestamp": "',
+                _uint2str(block.timestamp),
+                '",\n',
+                '    "chainId": ',
+                _uint2str(block.chainid),
+                ",\n",
+                '    "totalAttacks": ',
+                _uint2str(results.length),
+                "\n",
+                "  },\n",
+                '  "attacks": [\n'
+            )
+        );
+
+        for (uint256 i = 0; i < results.length; i++) {
+            json = string(abi.encodePacked(json, _buildAttackJson(results[i], i == results.length - 1)));
+        }
+
+        json = string(
+            abi.encodePacked(
+                json,
+                "  ],\n",
+                '  "summary": {\n',
+                '    "totalSuccessful": ',
+                _uint2str(successCount),
+                ",\n",
+                '    "successRate": ',
+                _uint2str(successRate),
+                ",\n",
+                '    "totalExtracted": "',
+                _uint2str(totalExtracted),
+                '"\n',
+                "  }\n",
+                "}\n"
+            )
+        );
+    }
+
+    function _buildAttackJson(AttackResult memory attack, bool isLast) internal pure returns (string memory) {
+        string memory entry = string(
+            abi.encodePacked(
+                "    {\n",
+                '      "name": "',
+                attack.attackName,
+                '",\n',
+                '      "succeeded": ',
+                attack.succeeded ? "true" : "false",
+                ",\n",
+                '      "amountExtracted": "',
+                _uint2str(attack.amountExtracted),
+                '",\n',
+                '      "details": "',
+                attack.details,
+                '"\n',
+                "    }"
+            )
+        );
+
+        return isLast ? string(abi.encodePacked(entry, "\n")) : string(abi.encodePacked(entry, ",\n"));
     }
 
     // Utilities

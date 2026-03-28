@@ -39,11 +39,11 @@ contract TokenBasedDefense {
     // ─────────────────────────────────────────────────────────────────────────
 
     /// @notice Governance token (ERC20Votes compatible).
-    IVotesView public immutable token;
+    IVotesView public immutable TOKEN;
 
     constructor(IVotesView _token) {
         require(address(_token) != address(0), "TokenBasedDefense: zero token");
-        token = _token;
+        TOKEN = _token;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ contract TokenBasedDefense {
     /// @return Voting power at the given block (historical checkpoint).
     function snapshotVotes(address account, uint256 snapshotBlock) external view returns (uint256) {
         require(snapshotBlock < block.number, "TokenBasedDefense: snapshot must be past block");
-        return token.snapshotWeight(account, snapshotBlock);
+        return TOKEN.snapshotWeight(account, snapshotBlock);
     }
 
     /// @notice Returns current (live) voting power for comparison.
@@ -70,7 +70,7 @@ contract TokenBasedDefense {
     /// @param account The voter address.
     /// @return Current voting power (updated in same block).
     function liveVotes(address account) external view returns (uint256) {
-        return token.liveWeight(account);
+        return TOKEN.liveWeight(account);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
