@@ -285,10 +285,7 @@ contract WhaleManipulationTest is Test {
         vm.roll(block.number + 101);
 
         // Proposal passes easily with whale's voting power
-        assertEq(
-            uint256(governor.state(proposalId)),
-            uint256(GovernorVulnerable.ProposalState.Succeeded)
-        );
+        assertEq(uint256(governor.state(proposalId)), uint256(GovernorVulnerable.ProposalState.Succeeded));
     }
 
     /// @notice Whale changes governance parameters to their benefit
@@ -421,10 +418,7 @@ contract WhaleManipulationTest is Test {
         vm.roll(block.number + 101);
 
         // Proposal fails despite majority of participants voting For
-        assertEq(
-            uint256(governor.state(proposalId)),
-            uint256(GovernorVulnerable.ProposalState.Defeated)
-        );
+        assertEq(uint256(governor.state(proposalId)), uint256(GovernorVulnerable.ProposalState.Defeated));
     }
 
     // ─────────────────────────────────────────────────────────────────────────

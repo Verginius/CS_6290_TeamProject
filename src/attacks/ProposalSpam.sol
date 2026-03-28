@@ -61,7 +61,7 @@ contract ProposalSpam {
 
     address public governor;
     address public spammer; // The account submitting spam
-    
+
     uint256 public totalSpamProposals;
     uint256 public maliciousProposalId;
     bool public maliciousProposalPassed;
@@ -146,15 +146,10 @@ contract ProposalSpam {
 
         string memory description = _generateSpamDescription(index);
 
-        try IGovernor(governor).propose(targets, values, calldatas, description) returns (
-            uint256 proposalId
-        ) {
+        try IGovernor(governor).propose(targets, values, calldatas, description) returns (uint256 proposalId) {
             spamProposalIds.push(proposalId);
             spamProposals[proposalId] = SpamProposalInfo({
-                createdBlock: block.number,
-                description: description,
-                isMalicious: false,
-                wasHidden: true
+                createdBlock: block.number, description: description, isMalicious: false, wasHidden: true
             });
 
             emit SpamProposalCreated(proposalId, description);
@@ -287,11 +282,7 @@ contract ProposalSpam {
     /**
      * @notice Get info about a spam proposal
      */
-    function getSpamProposalInfo(uint256 proposalId)
-        external
-        view
-        returns (SpamProposalInfo memory)
-    {
+    function getSpamProposalInfo(uint256 proposalId) external view returns (SpamProposalInfo memory) {
         return spamProposals[proposalId];
     }
 

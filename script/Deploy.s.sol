@@ -105,12 +105,7 @@ contract Deploy is Script {
     function _deployGovernanceContracts(address admin) internal {
         // Deploy Governance Token
         console.log("Deploying GovernanceToken...");
-        GovernanceToken govToken = new GovernanceToken(
-            "Governance Token",
-            "GOV",
-            admin,
-            GOV_TOKEN_INITIAL_SUPPLY
-        );
+        GovernanceToken govToken = new GovernanceToken("Governance Token", "GOV", admin, GOV_TOKEN_INITIAL_SUPPLY);
         deployedGovToken = address(govToken);
         console.log("GovernanceToken deployed at:", deployedGovToken);
 
@@ -205,21 +200,15 @@ contract Deploy is Script {
         // Deploy Flash Loan Attack
         console.log("Deploying FlashLoanAttack...");
         FlashLoanAttack flashLoanAttack = new FlashLoanAttack(
-            deployedFlashLoanProvider,
-            deployedGovToken,
-            deployedGovernorVulnerable,
-            deployedMockTreasury
+            deployedFlashLoanProvider, deployedGovToken, deployedGovernorVulnerable, deployedMockTreasury
         );
         deployedFlashLoanAttack = address(flashLoanAttack);
         console.log("FlashLoanAttack deployed at:", deployedFlashLoanAttack);
 
         // Deploy Whale Manipulation Attack
         console.log("Deploying WhaleManipulation...");
-        WhaleManipulation whaleManipulation = new WhaleManipulation(
-            deployedGovToken,
-            deployedGovernorVulnerable,
-            deployedMockTreasury
-        );
+        WhaleManipulation whaleManipulation =
+            new WhaleManipulation(deployedGovToken, deployedGovernorVulnerable, deployedMockTreasury);
         deployedWhaleManipulation = address(whaleManipulation);
         console.log("WhaleManipulation deployed at:", deployedWhaleManipulation);
 
@@ -231,21 +220,15 @@ contract Deploy is Script {
 
         // Deploy Quorum Manipulation Attack
         console.log("Deploying QuorumManipulation...");
-        QuorumManipulation quorumManipulation = new QuorumManipulation(
-            deployedGovToken,
-            deployedGovernorVulnerable,
-            deployedMockTreasury
-        );
+        QuorumManipulation quorumManipulation =
+            new QuorumManipulation(deployedGovToken, deployedGovernorVulnerable, deployedMockTreasury);
         deployedQuorumManipulation = address(quorumManipulation);
         console.log("QuorumManipulation deployed at:", deployedQuorumManipulation);
 
         // Deploy Timelock Exploit Attack
         console.log("Deploying TimelockExploit...");
-        TimelockExploit timelockExploit = new TimelockExploit(
-            deployedGovernorVulnerable,
-            deployedTimelock,
-            deployedMockTreasury
-        );
+        TimelockExploit timelockExploit =
+            new TimelockExploit(deployedGovernorVulnerable, deployedTimelock, deployedMockTreasury);
         deployedTimelockExploit = address(timelockExploit);
         console.log("TimelockExploit deployed at:", deployedTimelockExploit);
     }
@@ -288,12 +271,7 @@ contract Deploy is Script {
     function getDeploymentAddresses()
         public
         view
-        returns (
-            address govToken,
-            address governorVulnerable,
-            address mockTreasury,
-            address flashLoanAttack
-        )
+        returns (address govToken, address governorVulnerable, address mockTreasury, address flashLoanAttack)
     {
         return (deployedGovToken, deployedGovernorVulnerable, deployedMockTreasury, deployedFlashLoanAttack);
     }

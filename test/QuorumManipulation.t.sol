@@ -116,9 +116,7 @@ contract QuorumManipulationTest is Test {
         vm.roll(block.number + 1);
 
         // 7. Initialize quorum manipulation attack contract
-        quorumAttack = new QuorumManipulation(
-            address(token), address(governor), address(treasury)
-        );
+        quorumAttack = new QuorumManipulation(address(token), address(governor), address(treasury));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -203,10 +201,7 @@ contract QuorumManipulationTest is Test {
         vm.roll(block.number + 101);
 
         // With VULN-5, this should succeed
-        assertEq(
-            uint256(governor.state(proposalId)),
-            uint256(GovernorVulnerable.ProposalState.Succeeded)
-        );
+        assertEq(uint256(governor.state(proposalId)), uint256(GovernorVulnerable.ProposalState.Succeeded));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -220,7 +215,7 @@ contract QuorumManipulationTest is Test {
 
         for (uint256 i = 0; i < 10; ++i) {
             sybilAccounts[i] = makeAddr(string(abi.encodePacked("sybil", vm.toString(i))));
-            
+
             // In a real attack, these would need some tokens
             // For this test, they're just addresses
         }
@@ -313,10 +308,7 @@ contract QuorumManipulationTest is Test {
         vm.roll(block.number + 101);
 
         // Should succeed despite low participation
-        assertEq(
-            uint256(governor.state(proposalId)),
-            uint256(GovernorVulnerable.ProposalState.Succeeded)
-        );
+        assertEq(uint256(governor.state(proposalId)), uint256(GovernorVulnerable.ProposalState.Succeeded));
     }
 
     /// @notice Participation rate affects quorum requirements
@@ -370,10 +362,7 @@ contract QuorumManipulationTest is Test {
         vm.roll(block.number + 101);
 
         // With quorum requirement, should be Defeated
-        assertEq(
-            uint256(governor.state(proposalId)),
-            uint256(GovernorVulnerable.ProposalState.Defeated)
-        );
+        assertEq(uint256(governor.state(proposalId)), uint256(GovernorVulnerable.ProposalState.Defeated));
     }
 
     /// @notice Supermajority requirements increase attack cost

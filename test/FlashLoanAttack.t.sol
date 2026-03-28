@@ -117,12 +117,7 @@ contract FlashLoanAttackTest is Test {
         token.transfer(address(treasury), TREASURY_DRAIN_AMOUNT);
 
         // 6. Create flash loan attack contract
-        attack = new FlashLoanAttack(
-            address(flashLoanProvider),
-            address(token),
-            address(governor),
-            address(treasury)
-        );
+        attack = new FlashLoanAttack(address(flashLoanProvider), address(token), address(governor), address(treasury));
 
         // 7. Fund the attacker account
         token.transfer(attacker, 1000e18); // Small amount for proposing
@@ -221,9 +216,7 @@ contract FlashLoanAttackTest is Test {
 
         // The provider should have more tokens due to fee collection
         assertGe(
-            providerFinalBalance,
-            providerInitialBalance + expectedFee,
-            "Flash loan should be fully repaid with fee"
+            providerFinalBalance, providerInitialBalance + expectedFee, "Flash loan should be fully repaid with fee"
         );
     }
 
@@ -262,9 +255,8 @@ contract FlashLoanAttackTest is Test {
 
         // Second attack in same transaction would fail if flash loan provider
         // prevents reentrancy (which MockFlashLoanProvider should do)
-        FlashLoanAttack attack2 = new FlashLoanAttack(
-            address(flashLoanProvider), address(token), address(governor), address(treasury)
-        );
+        FlashLoanAttack attack2 =
+            new FlashLoanAttack(address(flashLoanProvider), address(token), address(governor), address(treasury));
 
         // This should work because it's a different attack contract
         vm.prank(attacker);

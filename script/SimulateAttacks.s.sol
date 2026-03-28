@@ -94,20 +94,18 @@ contract SimulateAttacks is Script {
         bool attackSucceeded = attack.wasAttackSuccessful();
         console.log("Stolen amount: ", stolenAmount);
         console.log("Attack succeeded: ", attackSucceeded);
-        results.push(AttackResult({
-            attackName: "Flash Loan Attack",
-            succeeded: attackSucceeded,
-            amountExtracted: stolenAmount,
-            details: "Borrowed tokens, voted, executed proposal"
-        }));
+        results.push(
+            AttackResult({
+                attackName: "Flash Loan Attack",
+                succeeded: attackSucceeded,
+                amountExtracted: stolenAmount,
+                details: "Borrowed tokens, voted, executed proposal"
+            })
+        );
         console.log("PASS: Flash Loan Attack completed");
     }
 
-    function _simulateWhaleManipulation(
-        address govToken,
-        address governor,
-        address mockTreasury
-    ) internal {
+    function _simulateWhaleManipulation(address govToken, address governor, address mockTreasury) internal {
         console.log("[2] Whale Manipulation");
         WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
         address whale = address(0xDEADBEEF);
@@ -136,8 +134,7 @@ contract SimulateAttacks is Script {
         console.log("Creating spam proposals (50)...");
         uint256 spamCount = attack.executeSpamAttack(50);
         console.log("Spam proposals created: ", spamCount);
-        (uint256 total, uint256 percent, uint256 fatigue, uint256 difficulty) =
-            attack.analyzeAttackEffectiveness();
+        (uint256 total, uint256 percent, uint256 fatigue, uint256 difficulty) = attack.analyzeAttackEffectiveness();
         console.log("Total proposals: ", total);
         console.log("Percent malicious: ", percent);
         console.log("Estimated voter fatigue (bps): ", fatigue);
@@ -153,11 +150,7 @@ contract SimulateAttacks is Script {
         console.log("PASS: Proposal Spam completed");
     }
 
-    function _simulateQuorumManipulation(
-        address govToken,
-        address governor,
-        address mockTreasury
-    ) internal {
+    function _simulateQuorumManipulation(address govToken, address governor, address mockTreasury) internal {
         console.log("[4] Quorum Manipulation");
         QuorumManipulation attack = new QuorumManipulation(govToken, governor, mockTreasury);
         console.log("Simulating low-participation window attack...");
@@ -178,9 +171,7 @@ contract SimulateAttacks is Script {
         console.log("PASS: Quorum Manipulation completed");
     }
 
-    function _simulateTimelockExploit(address governor, address mockTreasury)
-        internal
-    {
+    function _simulateTimelockExploit(address governor, address mockTreasury) internal {
         console.log("[5] Timelock Exploit");
         TimelockExploit attack = new TimelockExploit(governor, address(0), mockTreasury);
         console.log("Identifying timelock vulnerabilities...");
@@ -209,10 +200,7 @@ contract SimulateAttacks is Script {
 
         for (uint256 i = 0; i < results.length; i++) {
             console.log(string(abi.encodePacked("Attack ", _uint2str(i + 1), ": ", results[i].attackName)));
-            console.log(
-                "  Status: ",
-                results[i].succeeded ? "SUCCESS" : "FAILED"
-            );
+            console.log("  Status: ", results[i].succeeded ? "SUCCESS" : "FAILED");
             console.log("  Amount Extracted: ", results[i].amountExtracted);
             console.log("  Details: ", results[i].details);
         }

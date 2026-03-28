@@ -34,12 +34,7 @@ import {IFlashLoanReceiver} from "../mocks/MockFlashLoanProvider.sol";
  */
 
 interface IFlashLoanProvider {
-    function flashLoan(
-        address token,
-        uint256 amount,
-        address receiver,
-        bytes calldata data
-    ) external returns (bool);
+    function flashLoan(address token, uint256 amount, address receiver, bytes calldata data) external returns (bool);
 
     function getFlashLoanFee(uint256 amount) external view returns (uint256);
 }
@@ -98,12 +93,7 @@ contract FlashLoanAttack is IFlashLoanReceiver {
     // Constructor
     // ─────────────────────────────────────────────────────────────────────────
 
-    constructor(
-        address _flashLoanProvider,
-        address _governanceToken,
-        address _governor,
-        address _targetTreasury
-    ) {
+    constructor(address _flashLoanProvider, address _governanceToken, address _governor, address _targetTreasury) {
         require(_flashLoanProvider != address(0), "Invalid flash loan provider");
         require(_governanceToken != address(0), "Invalid governance token");
         require(_governor != address(0), "Invalid governor");
@@ -136,8 +126,9 @@ contract FlashLoanAttack is IFlashLoanReceiver {
 
         // Request flash loan
         // The provider will call executeOperation() as a callback
-        try IFlashLoanProvider(flashLoanProvider).flashLoan(governanceToken, loanAmount, address(this), data)
-        returns (bool success) {
+        try IFlashLoanProvider(flashLoanProvider).flashLoan(governanceToken, loanAmount, address(this), data) returns (
+            bool success
+        ) {
             return success;
         } catch Error(string memory reason) {
             emit AttackFailed(reason);
@@ -160,12 +151,11 @@ contract FlashLoanAttack is IFlashLoanReceiver {
      * 3. Vote on proposal
      * 4. Execute proposal
      */
-    function executeOperation(
-        address token,
-        uint256 amount,
-        uint256 fee,
-        bytes calldata data
-    ) external override returns (bool) {
+    function executeOperation(address token, uint256 amount, uint256 fee, bytes calldata data)
+        external
+        override
+        returns (bool)
+    {
         require(msg.sender == flashLoanProvider, "FlashLoanAttack: only flash loan provider can call");
         require(token == governanceToken, "FlashLoanAttack: token mismatch");
 

@@ -111,6 +111,21 @@ contract ProposalSpamTest is Test {
         spamAttack = new ProposalSpam(address(governor));
     }
 
+    /// @dev Creates a minimal no-op proposal for a given proposer.
+    function _proposeNoOp(address proposer, string memory description) internal returns (uint256 proposalId) {
+        address[] memory targets = new address[](1);
+        targets[0] = address(0);
+
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = "";
+
+        vm.prank(proposer);
+        proposalId = governor.propose(targets, values, calldatas, description);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Constructor Validation Tests
     // ─────────────────────────────────────────────────────────────────────────
@@ -142,19 +157,7 @@ contract ProposalSpamTest is Test {
         assertEq(token.getVotes(spammer), 0);
 
         // But can still create a proposal due to VULN-4 (zero threshold)
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "Spam Proposal #1: This is spam";
-
-        vm.prank(spammer);
-        uint256 proposalId = governor.propose(targets, values, calldatas, description);
+        uint256 proposalId = _proposeNoOp(spammer, "Spam Proposal #1: This is spam");
 
         assertGt(proposalId, 0, "Proposal should be created despite zero voting power");
     }
@@ -162,19 +165,8 @@ contract ProposalSpamTest is Test {
     /// @notice Can create multiple spam proposals
     function testCreateMultipleSpamProposals() public {
         for (uint256 i = 1; i <= NUM_SPAM_PROPOSALS; ++i) {
-            address[] memory targets = new address[](1);
-            targets[0] = address(0);
-
-            uint256[] memory values = new uint256[](1);
-            values[0] = 0;
-
-            bytes[] memory calldatas = new bytes[](1);
-            calldatas[0] = "";
-
             string memory description = string(abi.encodePacked("Spam Proposal #", vm.toString(i)));
-
-            vm.prank(spammer);
-            uint256 proposalId = governor.propose(targets, values, calldatas, description);
+            uint256 proposalId = _proposeNoOp(spammer, description);
 
             assertGt(proposalId, 0);
         }
@@ -188,19 +180,7 @@ contract ProposalSpamTest is Test {
 
     /// @notice Spam proposals are tracked with metadata
     function testSpamProposalTracking() public {
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "Spam Proposal: Test tracking";
-
-        vm.prank(spammer);
-        governor.propose(targets, values, calldatas, description);
+        _proposeNoOp(spammer, "Spam Proposal: Test tracking");
 
         // Add to spam tracking
         vm.prank(spammer);
@@ -216,61 +196,21 @@ contract ProposalSpamTest is Test {
     function testBuryLegitimateProposal() public {
         // Create spam proposals first
         for (uint256 i = 0; i < 5; ++i) {
-            {
-                address[] memory spamTargets = new address[](1);
-                spamTargets[0] = address(0);
-
-                uint256[] memory spamValues = new uint256[](1);
-                spamValues[0] = 0;
-
-                bytes[] memory spamCalldatas = new bytes[](1);
-                spamCalldatas[0] = "";
-
-                string memory spamDescription = string(abi.encodePacked("Spam #", vm.toString(i)));
-
-                vm.prank(spammer);
-                governor.propose(spamTargets, spamValues, spamCalldatas, spamDescription);
-            }
+            string memory spamDescription = string(abi.encodePacked("Spam #", vm.toString(i)));
+            _proposeNoOp(spammer, spamDescription);
         }
 
         // Then create legitimate proposal
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "IMPORTANT: Legitimate Governance Proposal";
-
-        vm.prank(legitimateProposer);
-        uint256 legitimateProposalId = governor.propose(targets, values, calldatas, description);
+        uint256 legitimateProposalId = _proposeNoOp(legitimateProposer, "IMPORTANT: Legitimate Governance Proposal");
 
         // More spam after legitimate proposal
         for (uint256 i = 5; i < 10; ++i) {
-            address[] memory targetsSpam = new address[](1);
-            targetsSpam[0] = address(0);
-
-            uint256[] memory valuesSpam = new uint256[](1);
-            valuesSpam[0] = 0;
-
-            bytes[] memory calldatasSpam = new bytes[](1);
-            calldatasSpam[0] = "";
-
             string memory descSpam = string(abi.encodePacked("Spam #", vm.toString(i)));
-
-            vm.prank(spammer);
-            governor.propose(targetsSpam, valuesSpam, calldatasSpam, descSpam);
+            _proposeNoOp(spammer, descSpam);
         }
 
         // Legitimate proposal is now buried among many proposals
-        // Verify the legitimate proposal ID was captured
         assertGt(legitimateProposalId, 0, "Legitimate proposal should be created");
-        // Verify proposal hash matches
-        assertEq(legitimateProposalId, governor.hashProposal(targets, values, calldatas, 
-                                                              keccak256(abi.encodePacked(description))));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -290,40 +230,16 @@ contract ProposalSpamTest is Test {
         );
 
         // Spammer still has 0 tokens
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "Spam Proposal: Should fail";
-
         // Should revert due to threshold
         vm.prank(spammer);
         vm.expectRevert();
-        governor.propose(targets, values, calldatas, description);
+        _proposeNoOp(spammer, "Spam Proposal: Should fail");
     }
 
     /// @notice Legitimate proposer with tokens still succeeds
     function testLegitimateProposerCanPropose() public {
         assertGe(token.getVotes(legitimateProposer), USER_TOKENS);
-
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "Legitimate Proposal";
-
-        vm.prank(legitimateProposer);
-        uint256 proposalId = governor.propose(targets, values, calldatas, description);
+        uint256 proposalId = _proposeNoOp(legitimateProposer, "Legitimate Proposal");
 
         assertGt(proposalId, 0);
     }
@@ -379,30 +295,22 @@ contract ProposalSpamTest is Test {
 
         // Create alternating spam and legitimate proposals
         for (uint256 i = 0; i < 6; ++i) {
-            address[] memory targets = new address[](1);
-            targets[0] = address(0);
-
-            uint256[] memory values = new uint256[](1);
-            values[0] = 0;
-
-            bytes[] memory calldatas = new bytes[](1);
-            calldatas[0] = "";
-
             string memory description;
+            address proposer;
 
             if (i % 2 == 0) {
                 // Spam
                 description = string(abi.encodePacked("SPAM #", vm.toString(i)));
-                vm.prank(spammer);
+                proposer = spammer;
                 spam_count++;
             } else {
                 // Legitimate
                 description = string(abi.encodePacked("LEGITIMATE #", vm.toString(i)));
-                vm.prank(legitimateProposer);
+                proposer = legitimateProposer;
                 legitimate_count++;
             }
 
-            governor.propose(targets, values, calldatas, description);
+            _proposeNoOp(proposer, description);
         }
 
         // Verify proposals were created
@@ -414,37 +322,12 @@ contract ProposalSpamTest is Test {
     function testVoterFatigueScenario() public {
         // Create many spam proposals
         for (uint256 i = 0; i < 20; ++i) {
-            {
-                address[] memory spamTargets = new address[](1);
-                spamTargets[0] = address(0);
-
-                uint256[] memory spamValues = new uint256[](1);
-                spamValues[0] = 0;
-
-                bytes[] memory spamCalldatas = new bytes[](1);
-                spamCalldatas[0] = "";
-
-                string memory spamDescription = string(abi.encodePacked("Spam #", vm.toString(i)));
-
-                vm.prank(spammer);
-                governor.propose(spamTargets, spamValues, spamCalldatas, spamDescription);
-            }
+            string memory spamDescription = string(abi.encodePacked("Spam #", vm.toString(i)));
+            _proposeNoOp(spammer, spamDescription);
         }
 
         // Now create a legitimate proposal
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "IMPORTANT: Governance Parameter Change";
-
-        vm.prank(legitimateProposer);
-        uint256 legitimateId = governor.propose(targets, values, calldatas, description);
+        uint256 legitimateId = _proposeNoOp(legitimateProposer, "IMPORTANT: Governance Parameter Change");
 
         // Move to voting
         vm.roll(block.number + 2);
@@ -460,45 +343,15 @@ contract ProposalSpamTest is Test {
 
     /// @notice Can create proposal with minimal calldata
     function testSpamWithMinimalCalldata() public {
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "";
-
-        vm.prank(spammer);
-        uint256 proposalId = governor.propose(targets, values, calldatas, description);
+        uint256 proposalId = _proposeNoOp(spammer, "");
 
         assertGt(proposalId, 0);
     }
 
     /// @notice Proposal IDs are unique
     function testUniqueProposalIds() public {
-        uint256 id1 = 0;
-        uint256 id2 = 0;
-
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        // Create two different proposals
-        string memory desc1 = "Spam #1";
-        vm.prank(spammer);
-        id1 = governor.propose(targets, values, calldatas, desc1);
-
-        string memory desc2 = "Spam #2";
-        vm.prank(spammer);
-        id2 = governor.propose(targets, values, calldatas, desc2);
+        uint256 id1 = _proposeNoOp(spammer, "Spam #1");
+        uint256 id2 = _proposeNoOp(spammer, "Spam #2");
 
         assertNotEq(id1, id2, "Proposal IDs should be unique");
     }

@@ -93,12 +93,7 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     event ETHReceived(address indexed from, uint256 amount);
     event TokenDeposited(address indexed token, uint256 amount);
     event TokenWithdrawn(address indexed token, address indexed to, uint256 amount);
-    event TransactionCreated(
-        uint256 indexed txId,
-        address indexed initiator,
-        address indexed token,
-        uint256 amount
-    );
+    event TransactionCreated(uint256 indexed txId, address indexed initiator, address indexed token, uint256 amount);
     event TransactionExecuted(uint256 indexed txId, address indexed executor);
     event TransactionFailed(uint256 indexed txId, string reason);
     event WithdrawalAttempted(address indexed attacker, address indexed token, uint256 amount);
@@ -240,12 +235,11 @@ contract MockTreasury is Ownable, ReentrancyGuard {
      * @param description Transaction description
      * @return txId Transaction ID
      */
-    function proposeWithdrawal(
-        address token,
-        uint256 amount,
-        address to,
-        string calldata description
-    ) external onlySigner returns (uint256) {
+    function proposeWithdrawal(address token, uint256 amount, address to, string calldata description)
+        external
+        onlySigner
+        returns (uint256)
+    {
         require(to != address(0), "Invalid recipient");
         require(amount > 0, "Amount must be > 0");
         require(tokenBalance[token] >= amount, "Insufficient balance");
@@ -463,13 +457,7 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     function getTransaction(uint256 txId)
         external
         view
-        returns (
-            address token,
-            uint256 amount,
-            address recipient,
-            TransactionStatus status,
-            string memory description
-        )
+        returns (address token, uint256 amount, address recipient, TransactionStatus status, string memory description)
     {
         require(txId < transactions.length, "Invalid transaction ID");
         Transaction storage tx = transactions[txId];
@@ -497,11 +485,7 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     /**
      * @notice Get total treasury value (in terms of number of different tokens)
      */
-    function getTreasuryComposition()
-        external
-        view
-        returns (address[] memory tokenList, uint256[] memory balances)
-    {
+    function getTreasuryComposition() external view returns (address[] memory tokenList, uint256[] memory balances) {
         tokenList = new address[](tokens.length);
         balances = new uint256[](tokens.length);
 
