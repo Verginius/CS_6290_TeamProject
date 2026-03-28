@@ -13,8 +13,7 @@ import {TimelockExploit} from "../src/attacks/TimelockExploit.sol";
 
 // Token and Contracts
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
-import {MockTreasury} from "../src/mocks/MockTreasury.sol";
-import {MockFlashLoanProvider} from "../src/mocks/MockFlashLoanProvider.sol";
+import {GovernorVulnerable} from "../src/governance/GovernorVulnerable.sol";
 
 /**
  * @title SimulateAttacks
@@ -94,26 +93,43 @@ contract SimulateAttacks is Script {
         bool attackSucceeded = attack.wasAttackSuccessful();
         console.log("Stolen amount: ", stolenAmount);
         console.log("Attack succeeded: ", attackSucceeded);
-        results.push(AttackResult({
-            attackName: "Flash Loan Attack",
-            succeeded: attackSucceeded,
-            amountExtracted: stolenAmount,
-            details: "Borrowed tokens, voted, executed proposal"
-        }));
+        results.push(
+            AttackResult({
+                attackName: "Flash Loan Attack",
+                succeeded: attackSucceeded,
+                amountExtracted: stolenAmount,
+                details: "Borrowed tokens, voted, executed proposal"
+            })
+        );
         console.log("PASS: Flash Loan Attack completed");
     }
 
-    function _simulateWhaleManipulation(
-        address govToken,
-        address governor,
-        address mockTreasury
-    ) internal {
+    function _simulateWhaleManipulation(address govToken, address governor, address mockTreasury) internal {
         console.log("[2] Whale Manipulation");
         WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
+        GovernorVulnerable gov = GovernorVulnerable(payable(governor));
         address whale = address(0xDEADBEEF);
-        GovernanceToken(govToken).mint(whale, 600_000_000e18);
+
+        GovernanceToken(govToken).transfer(whale, 600_000_000e18);
+        vm.prank(whale);
+        GovernanceToken(govToken).delegate(whale);
+
         console.log("Created whale with 60% voting power");
-        bool success = attack.executeWhaleAttack(whale, WHALE_ATTACK_DRAIN);
+
+        uint256 proposalId = attack.createWhaleProposal(whale, WHALE_ATTACK_DRAIN);
+        console.log("Created whale proposal ID: ", proposalId);
+
+        // Move from Pending to Active.
+        vm.roll(block.number + gov.votingDelay() + 1);
+
+        // Whale votes directly on governor so voting weight is attributed correctly.
+        vm.prank(whale);
+        console.log("Whale vote weight: ", gov.castVote(proposalId, 1));
+
+        // Move beyond voting period so proposal can be evaluated/executed.
+        vm.roll(block.number + gov.votingPeriod() + 1);
+
+        bool success = attack.executeAfterWhaleVote(proposalId);
         console.log("Attack execution result: ", success);
         uint256 stolenAmount = attack.getAmountStolen();
         bool succeeded = attack.wasAttackSuccessful();
@@ -124,7 +140,7 @@ contract SimulateAttacks is Script {
                 attackName: "Whale Manipulation",
                 succeeded: succeeded,
                 amountExtracted: stolenAmount,
-                details: "Whale with 60% voting power passed self-serving proposal"
+                details: "Whale directly voted then executed self-serving proposal"
             })
         );
         console.log("PASS: Whale Manipulation completed");
@@ -136,8 +152,7 @@ contract SimulateAttacks is Script {
         console.log("Creating spam proposals (50)...");
         uint256 spamCount = attack.executeSpamAttack(50);
         console.log("Spam proposals created: ", spamCount);
-        (uint256 total, uint256 percent, uint256 fatigue, uint256 difficulty) =
-            attack.analyzeAttackEffectiveness();
+        (uint256 total, uint256 percent, uint256 fatigue, uint256 difficulty) = attack.analyzeAttackEffectiveness();
         console.log("Total proposals: ", total);
         console.log("Percent malicious: ", percent);
         console.log("Estimated voter fatigue (bps): ", fatigue);
@@ -153,11 +168,7 @@ contract SimulateAttacks is Script {
         console.log("PASS: Proposal Spam completed");
     }
 
-    function _simulateQuorumManipulation(
-        address govToken,
-        address governor,
-        address mockTreasury
-    ) internal {
+    function _simulateQuorumManipulation(address govToken, address governor, address mockTreasury) internal {
         console.log("[4] Quorum Manipulation");
         QuorumManipulation attack = new QuorumManipulation(govToken, governor, mockTreasury);
         console.log("Simulating low-participation window attack...");
@@ -178,11 +189,10 @@ contract SimulateAttacks is Script {
         console.log("PASS: Quorum Manipulation completed");
     }
 
-    function _simulateTimelockExploit(address governor, address mockTreasury)
-        internal
-    {
+    function _simulateTimelockExploit(address governor, address mockTreasury) internal {
         console.log("[5] Timelock Exploit");
-        TimelockExploit attack = new TimelockExploit(governor, address(0), mockTreasury);
+        address timelock = vm.envAddress("TIMELOCK");
+        TimelockExploit attack = new TimelockExploit(governor, timelock, mockTreasury);
         console.log("Identifying timelock vulnerabilities...");
         uint256 delay = attack.identifyTimelockVulnerabilities();
         console.log("Timelock delay identified: ", delay, " seconds");
@@ -209,10 +219,7 @@ contract SimulateAttacks is Script {
 
         for (uint256 i = 0; i < results.length; i++) {
             console.log(string(abi.encodePacked("Attack ", _uint2str(i + 1), ": ", results[i].attackName)));
-            console.log(
-                "  Status: ",
-                results[i].succeeded ? "SUCCESS" : "FAILED"
-            );
+            console.log("  Status: ", results[i].succeeded ? "SUCCESS" : "FAILED");
             console.log("  Amount Extracted: ", results[i].amountExtracted);
             console.log("  Details: ", results[i].details);
         }
@@ -239,12 +246,11 @@ contract SimulateAttacks is Script {
             j /= 10;
         }
         bytes memory bstr = new bytes(len);
+        bytes memory digits = "0123456789";
         uint256 k = len;
         while (_i != 0) {
-            k = k - 1;
-            uint8 temp = (48 + uint8(_i - (_i / 10) * 10));
-            bytes1 b1 = bytes1(temp);
-            bstr[k] = b1;
+            k--;
+            bstr[k] = digits[_i % 10];
             _i /= 10;
         }
         return string(bstr);

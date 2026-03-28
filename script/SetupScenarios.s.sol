@@ -11,7 +11,6 @@ import {GovernorWithDefenses, ITokenVotes as ITokenVotesDefenses} from "../src/g
 import {Timelock} from "../src/governance/Timelock.sol";
 
 // Mock Contracts
-import {MockToken} from "../src/mocks/MockToken.sol";
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
 
 /**
@@ -51,7 +50,7 @@ contract SetupScenarios is Script {
     function run() external {
         console.log("[SETTING UP GOVERNANCE TEST SCENARIOS]");
 
-        string memory scenarioSelect = "A";  // Default to scenario A
+        string memory scenarioSelect = vm.envExists("SCENARIO") ? vm.envString("SCENARIO") : "A";
         _selectScenario(scenarioSelect);
 
         console.log("Selected Scenario: ", selectedScenario.name);
@@ -135,12 +134,7 @@ contract SetupScenarios is Script {
     function _deployGovernanceContracts() internal {
         address admin = msg.sender;
 
-        GovernanceToken token = new GovernanceToken(
-            "Governance Token",
-            "GOV",
-            admin,
-            TOTAL_SUPPLY
-        );
+        GovernanceToken token = new GovernanceToken("Governance Token", "GOV", admin, TOTAL_SUPPLY);
 
         deployedContracts.govToken = address(token);
         console.log("PASS: Governance Token deployed at:", address(token));
@@ -152,12 +146,7 @@ contract SetupScenarios is Script {
             address[] memory executors = new address[](1);
             executors[0] = address(0);
 
-            Timelock timelock = new Timelock(
-                selectedScenario.timelockDelay,
-                proposers,
-                executors,
-                admin
-            );
+            Timelock timelock = new Timelock(selectedScenario.timelockDelay, proposers, executors, admin);
 
             deployedContracts.timelock = address(timelock);
             console.log("PASS: Timelock deployed at:", address(timelock));
@@ -177,18 +166,23 @@ contract SetupScenarios is Script {
         deployedContracts.governorVulnerable = address(govVuln);
         console.log("PASS: Vulnerable Governor deployed at:", address(govVuln));
 
-        GovernorWithDefenses govDef = new GovernorWithDefenses(
-            "Governor With Defenses",
-            ITokenVotesDefenses(address(token)),
-            Timelock(payable(deployedContracts.timelock)),
-            VOTING_DELAY,
-            VOTING_PERIOD,
-            selectedScenario.proposalThreshold,
-            selectedScenario.quorumPercentage
-        );
+        if (selectedScenario.hasTimelock) {
+            GovernorWithDefenses govDef = new GovernorWithDefenses(
+                "Governor With Defenses",
+                ITokenVotesDefenses(address(token)),
+                Timelock(payable(deployedContracts.timelock)),
+                VOTING_DELAY,
+                VOTING_PERIOD,
+                selectedScenario.proposalThreshold,
+                selectedScenario.quorumPercentage
+            );
 
-        deployedContracts.governorDefended = address(govDef);
-        console.log("PASS: Defended Governor deployed at:", address(govDef));
+            deployedContracts.governorDefended = address(govDef);
+            console.log("PASS: Defended Governor deployed at:", address(govDef));
+        } else {
+            deployedContracts.governorDefended = address(0);
+            console.log("INFO: Defended Governor not deployed (no timelock for this scenario)");
+        }
     }
 
     function _setupTokenDistribution() internal {
@@ -202,7 +196,6 @@ contract SetupScenarios is Script {
             uint256 whaleAmount = (TOTAL_SUPPLY * 60) / 100;
             token.mint(whale, whaleAmount);
             console.log("  Whale receives:", whaleAmount / 1e18, "tokens (60%)");
-
         } else if (_stringsEqual(selectedScenario.tokenDistribution, "top3")) {
             address[] memory whales = new address[](3);
             whales[0] = address(0x0001);
@@ -220,21 +213,23 @@ contract SetupScenarios is Script {
             console.log("  Whale 1:", whale1Amount / 1e18, "tokens (27%)");
             console.log("  Whale 2:", whale2Amount / 1e18, "tokens (27%)");
             console.log("  Whale 3:", whale3Amount / 1e18, "tokens (26%)");
-
         } else if (_stringsEqual(selectedScenario.tokenDistribution, "distributed")) {
             uint256 amountPerAddress = TOTAL_SUPPLY / 100;
 
             for (uint256 i = 0; i < 100; i++) {
+                // casting to 'uint160' is safe because generated addresses use small bounded constants
+                // forge-lint: disable-next-line(unsafe-typecast)
                 address recipient = address(uint160(0x1000 + i));
                 token.mint(recipient, amountPerAddress);
             }
 
             console.log("  100 addresses receive:", amountPerAddress / 1e18, "tokens each");
-
         } else if (_stringsEqual(selectedScenario.tokenDistribution, "gaussian")) {
             uint256 avgAmount = TOTAL_SUPPLY / 50;
 
             for (uint256 i = 0; i < 50; i++) {
+                // casting to 'uint160' is safe because generated addresses use small bounded constants
+                // forge-lint: disable-next-line(unsafe-typecast)
                 address recipient = address(uint160(0x2000 + i));
                 uint256 amount;
 
@@ -254,7 +249,6 @@ contract SetupScenarios is Script {
             }
 
             console.log("  50 addresses with Gaussian distribution");
-
         } else if (_stringsEqual(selectedScenario.tokenDistribution, "equal")) {
             uint256 amountPerAddress = TOTAL_SUPPLY / 1000;
 
@@ -262,6 +256,8 @@ contract SetupScenarios is Script {
             console.log("  (Minting to 1000 addresses batched to save gas)");
 
             for (uint256 i = 0; i < 100; i++) {
+                // casting to 'uint160' is safe because generated addresses use small bounded constants
+                // forge-lint: disable-next-line(unsafe-typecast)
                 address recipient = address(uint160(0x3000 + i));
                 token.mint(recipient, amountPerAddress);
             }
@@ -273,12 +269,8 @@ contract SetupScenarios is Script {
     function _setupTreasury() internal {
         address[] memory signers = new address[](1);
         signers[0] = msg.sender;
-        
-        MockTreasury treasury = new MockTreasury(
-            signers,
-            1,
-            TOTAL_SUPPLY / 2
-        );
+
+        MockTreasury treasury = new MockTreasury(signers, 1, TOTAL_SUPPLY / 2);
         deployedContracts.mockTreasury = address(treasury);
 
         console.log("PASS: Mock Treasury deployed at:", address(treasury));
@@ -330,11 +322,7 @@ contract SetupScenarios is Script {
     }
 
     // Utilities
-    function _stringsEqual(string memory a, string memory b)
-        internal
-        pure
-        returns (bool)
-    {
+    function _stringsEqual(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 

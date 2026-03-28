@@ -76,6 +76,9 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     /// @notice Transaction history
     Transaction[] public transactions;
 
+    /// @notice Per-transaction signer confirmations
+    mapping(uint256 => mapping(address => bool)) public hasApprovedWithdrawal;
+
     /// @notice Maximum amount that can be transferred per transaction without multi-sig approval
     uint256 public spendingLimit;
 
@@ -93,12 +96,8 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     event ETHReceived(address indexed from, uint256 amount);
     event TokenDeposited(address indexed token, uint256 amount);
     event TokenWithdrawn(address indexed token, address indexed to, uint256 amount);
-    event TransactionCreated(
-        uint256 indexed txId,
-        address indexed initiator,
-        address indexed token,
-        uint256 amount
-    );
+    event TransactionCreated(uint256 indexed txId, address indexed initiator, address indexed token, uint256 amount);
+    event WithdrawalApproved(uint256 indexed txId, address indexed signer, uint256 approvals, uint256 required);
     event TransactionExecuted(uint256 indexed txId, address indexed executor);
     event TransactionFailed(uint256 indexed txId, string reason);
     event WithdrawalAttempted(address indexed attacker, address indexed token, uint256 amount);
@@ -240,17 +239,16 @@ contract MockTreasury is Ownable, ReentrancyGuard {
      * @param description Transaction description
      * @return txId Transaction ID
      */
-    function proposeWithdrawal(
-        address token,
-        uint256 amount,
-        address to,
-        string calldata description
-    ) external onlySigner returns (uint256) {
+    function proposeWithdrawal(address token, uint256 amount, address to, string calldata description)
+        external
+        onlySigner
+        returns (uint256)
+    {
         require(to != address(0), "Invalid recipient");
         require(amount > 0, "Amount must be > 0");
         require(tokenBalance[token] >= amount, "Insufficient balance");
 
-        Transaction memory tx = Transaction({
+        Transaction memory txn = Transaction({
             target: address(this),
             token: token,
             amount: amount,
@@ -262,11 +260,45 @@ contract MockTreasury is Ownable, ReentrancyGuard {
             initiator: msg.sender
         });
 
-        transactions.push(tx);
+        transactions.push(txn);
+        uint256 txId = transactions.length - 1;
 
-        emit TransactionCreated(transactions.length - 1, msg.sender, token, amount);
+        // Proposer counts as the first confirmation.
+        hasApprovedWithdrawal[txId][msg.sender] = true;
+        uint256 approvals = _getConfirmationCount(txId);
+        if (approvals >= requiredSignatures) {
+            transactions[txId].status = TransactionStatus.Approved;
+        }
 
-        return transactions.length - 1;
+        emit TransactionCreated(txId, msg.sender, token, amount);
+        emit WithdrawalApproved(txId, msg.sender, approvals, requiredSignatures);
+
+        return txId;
+    }
+
+    /**
+     * @notice Confirm a pending withdrawal transaction.
+     * @param txId Transaction ID to confirm
+     */
+    function confirmWithdrawal(uint256 txId) external onlySigner returns (bool) {
+        require(txId < transactions.length, "Invalid transaction ID");
+
+        Transaction storage txn = transactions[txId];
+        require(
+            txn.status == TransactionStatus.Pending || txn.status == TransactionStatus.Approved,
+            "Transaction not confirmable"
+        );
+        require(!hasApprovedWithdrawal[txId][msg.sender], "Already confirmed");
+
+        hasApprovedWithdrawal[txId][msg.sender] = true;
+
+        uint256 approvals = _getConfirmationCount(txId);
+        if (approvals >= requiredSignatures) {
+            txn.status = TransactionStatus.Approved;
+        }
+
+        emit WithdrawalApproved(txId, msg.sender, approvals, requiredSignatures);
+        return true;
     }
 
     /**
@@ -276,20 +308,24 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     function executeWithdrawal(uint256 txId) external nonReentrant onlySigner returns (bool) {
         require(txId < transactions.length, "Invalid transaction ID");
 
-        Transaction storage tx = transactions[txId];
+        Transaction storage txn = transactions[txId];
 
-        require(tx.status == TransactionStatus.Pending, "Transaction not pending");
-        require(tokenBalance[tx.token] >= tx.amount, "Insufficient balance");
+        require(
+            txn.status == TransactionStatus.Pending || txn.status == TransactionStatus.Approved,
+            "Transaction not pending"
+        );
+        require(_getConfirmationCount(txId) >= requiredSignatures, "Insufficient confirmations");
+        require(tokenBalance[txn.token] >= txn.amount, "Insufficient balance");
 
         // Execute the withdrawal
-        tx.status = TransactionStatus.Executed;
-        tx.executedAt = block.timestamp;
+        txn.status = TransactionStatus.Executed;
+        txn.executedAt = block.timestamp;
 
-        tokenBalance[tx.token] -= tx.amount;
-        IERC20(tx.token).safeTransfer(tx.recipient, tx.amount);
+        tokenBalance[txn.token] -= txn.amount;
+        IERC20(txn.token).safeTransfer(txn.recipient, txn.amount);
 
         emit TransactionExecuted(txId, msg.sender);
-        emit TokenWithdrawn(tx.token, tx.recipient, tx.amount);
+        emit TokenWithdrawn(txn.token, txn.recipient, txn.amount);
 
         return true;
     }
@@ -298,7 +334,7 @@ contract MockTreasury is Ownable, ReentrancyGuard {
      * @notice Attempt to withdraw funds (simulates attack)
      * Tracks where attackers attempt to withdraw from
      */
-    function attemptWithdrawal(address token, uint256 amount, address to) external returns (bool) {
+    function attemptWithdrawal(address token, uint256 amount, address) external returns (bool) {
         emit WithdrawalAttempted(msg.sender, token, amount);
 
         failedWithdrawalAttempts[msg.sender]++;
@@ -344,6 +380,10 @@ contract MockTreasury is Ownable, ReentrancyGuard {
         uint256 balance = IERC20(token).balanceOf(address(this));
         require(balance >= amount, "Insufficient balance");
 
+        // Sync tracked balance with actual balance to avoid underflow if bookkeeping drifted
+        if (tokenBalance[token] < balance) {
+            tokenBalance[token] = balance;
+        }
         IERC20(token).safeTransfer(to, amount);
         tokenBalance[token] -= amount;
 
@@ -425,7 +465,7 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     /**
      * @notice Get ETH balance
      */
-    function getETHBalance() external view returns (uint256) {
+    function getEthBalance() external view returns (uint256) {
         return address(this).balance;
     }
 
@@ -463,17 +503,11 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     function getTransaction(uint256 txId)
         external
         view
-        returns (
-            address token,
-            uint256 amount,
-            address recipient,
-            TransactionStatus status,
-            string memory description
-        )
+        returns (address token, uint256 amount, address recipient, TransactionStatus status, string memory description)
     {
         require(txId < transactions.length, "Invalid transaction ID");
-        Transaction storage tx = transactions[txId];
-        return (tx.token, tx.amount, tx.recipient, tx.status, tx.description);
+        Transaction storage txn = transactions[txId];
+        return (txn.token, txn.amount, txn.recipient, txn.status, txn.description);
     }
 
     /**
@@ -481,6 +515,14 @@ contract MockTreasury is Ownable, ReentrancyGuard {
      */
     function getTransactionCount() external view returns (uint256) {
         return transactions.length;
+    }
+
+    /**
+     * @notice Returns current confirmations for a transaction from active signers.
+     */
+    function getConfirmationCount(uint256 txId) external view returns (uint256) {
+        require(txId < transactions.length, "Invalid transaction ID");
+        return _getConfirmationCount(txId);
     }
 
     /**
@@ -497,11 +539,7 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     /**
      * @notice Get total treasury value (in terms of number of different tokens)
      */
-    function getTreasuryComposition()
-        external
-        view
-        returns (address[] memory tokenList, uint256[] memory balances)
-    {
+    function getTreasuryComposition() external view returns (address[] memory tokenList, uint256[] memory balances) {
         tokenList = new address[](tokens.length);
         balances = new uint256[](tokens.length);
 
@@ -521,7 +559,19 @@ contract MockTreasury is Ownable, ReentrancyGuard {
      * @notice Restrict function to authorized signers
      */
     modifier onlySigner() {
-        require(isSigner[msg.sender], "Not authorized");
+        _onlySigner();
         _;
+    }
+
+    function _onlySigner() internal view {
+        require(isSigner[msg.sender], "Not authorized");
+    }
+
+    function _getConfirmationCount(uint256 txId) internal view returns (uint256 count) {
+        for (uint256 i = 0; i < signers.length; i++) {
+            if (hasApprovedWithdrawal[txId][signers[i]]) {
+                count++;
+            }
+        }
     }
 }

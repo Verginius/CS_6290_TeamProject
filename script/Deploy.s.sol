@@ -89,7 +89,7 @@ contract Deploy is Script {
 
         // Step 3: Deploy Attack Contracts
         console.log("\n=== Deploying Attack Contracts ===");
-        _deployAttackContracts(admin);
+        _deployAttackContracts();
 
         // Stop recording transactions
         vm.stopBroadcast();
@@ -105,12 +105,7 @@ contract Deploy is Script {
     function _deployGovernanceContracts(address admin) internal {
         // Deploy Governance Token
         console.log("Deploying GovernanceToken...");
-        GovernanceToken govToken = new GovernanceToken(
-            "Governance Token",
-            "GOV",
-            admin,
-            GOV_TOKEN_INITIAL_SUPPLY
-        );
+        GovernanceToken govToken = new GovernanceToken("Governance Token", "GOV", admin, GOV_TOKEN_INITIAL_SUPPLY);
         deployedGovToken = address(govToken);
         console.log("GovernanceToken deployed at:", deployedGovToken);
 
@@ -126,7 +121,11 @@ contract Deploy is Script {
             "Governor Base",
             govToken,
             timelock,
+            // casting to 'uint48' is safe because VOTING_DELAY is a small constant (1 block)
+            // forge-lint: disable-next-line(unsafe-typecast)
             uint48(VOTING_DELAY),
+            // casting to 'uint32' is safe because VOTING_PERIOD is a bounded constant (50400)
+            // forge-lint: disable-next-line(unsafe-typecast)
             uint32(VOTING_PERIOD),
             1e16, // 1% proposal threshold
             0.04e18 // 4% quorum
@@ -153,7 +152,11 @@ contract Deploy is Script {
             "Governor With Defenses",
             ITokenVotesDefenses(address(govToken)),
             timelock,
+            // casting to 'uint48' is safe because VOTING_DELAY is a small constant (1 block)
+            // forge-lint: disable-next-line(unsafe-typecast)
             uint48(VOTING_DELAY),
+            // casting to 'uint32' is safe because VOTING_PERIOD is a bounded constant (50400)
+            // forge-lint: disable-next-line(unsafe-typecast)
             uint32(VOTING_PERIOD),
             1e16, // 1% proposal threshold
             0.04e18 // 4% quorum
@@ -169,9 +172,9 @@ contract Deploy is Script {
         deployedFlashLoanProvider = address(flashLoanProvider);
         console.log("MockFlashLoanProvider deployed at:", deployedFlashLoanProvider);
 
-        // Fund flash loan provider with governance tokens
+        // Fund flash loan provider with governance tokens from the admin's existing balance
         GovernanceToken govToken = GovernanceToken(deployedGovToken);
-        govToken.mint(deployedFlashLoanProvider, GOV_TOKEN_INITIAL_SUPPLY / 2);
+        govToken.transfer(deployedFlashLoanProvider, GOV_TOKEN_INITIAL_SUPPLY / 2);
         console.log("Funded flash loan provider with tokens");
 
         // Deploy Mock Token
@@ -194,32 +197,26 @@ contract Deploy is Script {
         console.log("MockTreasury deployed at:", deployedMockTreasury);
 
         // Fund the treasury
-        mockToken.mint(address(this), 10_000_000e18); // 10 million - mint to deployer
+        mockToken.mint(admin, 10_000_000e18); // 10 million - mint to admin (broadcaster)
         MockTreasury treasury = MockTreasury(payable(deployedMockTreasury));
         mockToken.approve(deployedMockTreasury, 10_000_000e18);
         treasury.depositToken(deployedMockToken, 10_000_000e18);
         console.log("Funded treasury with mock tokens");
     }
 
-    function _deployAttackContracts(address admin) internal {
+    function _deployAttackContracts() internal {
         // Deploy Flash Loan Attack
         console.log("Deploying FlashLoanAttack...");
         FlashLoanAttack flashLoanAttack = new FlashLoanAttack(
-            deployedFlashLoanProvider,
-            deployedGovToken,
-            deployedGovernorVulnerable,
-            deployedMockTreasury
+            deployedFlashLoanProvider, deployedGovToken, deployedGovernorVulnerable, deployedMockTreasury
         );
         deployedFlashLoanAttack = address(flashLoanAttack);
         console.log("FlashLoanAttack deployed at:", deployedFlashLoanAttack);
 
         // Deploy Whale Manipulation Attack
         console.log("Deploying WhaleManipulation...");
-        WhaleManipulation whaleManipulation = new WhaleManipulation(
-            deployedGovToken,
-            deployedGovernorVulnerable,
-            deployedMockTreasury
-        );
+        WhaleManipulation whaleManipulation =
+            new WhaleManipulation(deployedGovToken, deployedGovernorVulnerable, deployedMockTreasury);
         deployedWhaleManipulation = address(whaleManipulation);
         console.log("WhaleManipulation deployed at:", deployedWhaleManipulation);
 
@@ -231,21 +228,15 @@ contract Deploy is Script {
 
         // Deploy Quorum Manipulation Attack
         console.log("Deploying QuorumManipulation...");
-        QuorumManipulation quorumManipulation = new QuorumManipulation(
-            deployedGovToken,
-            deployedGovernorVulnerable,
-            deployedMockTreasury
-        );
+        QuorumManipulation quorumManipulation =
+            new QuorumManipulation(deployedGovToken, deployedGovernorVulnerable, deployedMockTreasury);
         deployedQuorumManipulation = address(quorumManipulation);
         console.log("QuorumManipulation deployed at:", deployedQuorumManipulation);
 
         // Deploy Timelock Exploit Attack
         console.log("Deploying TimelockExploit...");
-        TimelockExploit timelockExploit = new TimelockExploit(
-            deployedGovernorVulnerable,
-            deployedTimelock,
-            deployedMockTreasury
-        );
+        TimelockExploit timelockExploit =
+            new TimelockExploit(deployedGovernorVulnerable, deployedTimelock, deployedMockTreasury);
         deployedTimelockExploit = address(timelockExploit);
         console.log("TimelockExploit deployed at:", deployedTimelockExploit);
     }
@@ -288,12 +279,7 @@ contract Deploy is Script {
     function getDeploymentAddresses()
         public
         view
-        returns (
-            address govToken,
-            address governorVulnerable,
-            address mockTreasury,
-            address flashLoanAttack
-        )
+        returns (address govToken, address governorVulnerable, address mockTreasury, address flashLoanAttack)
     {
         return (deployedGovToken, deployedGovernorVulnerable, deployedMockTreasury, deployedFlashLoanAttack);
     }

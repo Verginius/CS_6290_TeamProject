@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 /**
  * @title ProposalSpam
  * @dev Exploits VULN-4: Zero proposal threshold
@@ -61,9 +59,10 @@ contract ProposalSpam {
 
     address public governor;
     address public spammer; // The account submitting spam
-    
+
     uint256 public totalSpamProposals;
     uint256 public maliciousProposalId;
+    uint256 public maliciousProposalCount;
     bool public maliciousProposalPassed;
 
     uint256[] public spamProposalIds;
@@ -146,15 +145,10 @@ contract ProposalSpam {
 
         string memory description = _generateSpamDescription(index);
 
-        try IGovernor(governor).propose(targets, values, calldatas, description) returns (
-            uint256 proposalId
-        ) {
+        try IGovernor(governor).propose(targets, values, calldatas, description) returns (uint256 proposalId) {
             spamProposalIds.push(proposalId);
             spamProposals[proposalId] = SpamProposalInfo({
-                createdBlock: block.number,
-                description: description,
-                isMalicious: false,
-                wasHidden: true
+                createdBlock: block.number, description: description, isMalicious: false, wasHidden: true
             });
 
             emit SpamProposalCreated(proposalId, description);
@@ -192,6 +186,7 @@ contract ProposalSpam {
             isMalicious: true,
             wasHidden: true // Hidden among spam
         });
+        maliciousProposalCount++;
 
         emit MaliciousProposalHidden(proposalId, spamProposalIds.length);
         emit MaliciousProposalDetected(proposalId);
@@ -271,7 +266,7 @@ contract ProposalSpam {
         )
     {
         totalProposals = spamProposalIds.length;
-        percentMalicious = totalProposals > 0 ? (100 / totalProposals) : 0;
+        percentMalicious = totalProposals > 0 ? (maliciousProposalCount * 100) / totalProposals : 0;
 
         // Voter fatigue increases with number of proposals
         // Each proposal costs ~2-5 minutes to review
@@ -287,11 +282,7 @@ contract ProposalSpam {
     /**
      * @notice Get info about a spam proposal
      */
-    function getSpamProposalInfo(uint256 proposalId)
-        external
-        view
-        returns (SpamProposalInfo memory)
-    {
+    function getSpamProposalInfo(uint256 proposalId) external view returns (SpamProposalInfo memory) {
         return spamProposals[proposalId];
     }
 
@@ -350,12 +341,11 @@ contract ProposalSpam {
             j /= 10;
         }
         bytes memory bstr = new bytes(len);
+        bytes memory digits = "0123456789";
         uint256 k = len;
         while (_i != 0) {
-            k = k - 1;
-            uint8 temp = (48 + uint8(_i - (_i / 10) * 10));
-            bytes1 b1 = bytes1(temp);
-            bstr[k] = b1;
+            k--;
+            bstr[k] = digits[_i % 10];
             _i /= 10;
         }
         return string(bstr);

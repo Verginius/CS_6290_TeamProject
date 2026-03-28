@@ -42,7 +42,7 @@ contract ExportData is Script {
     uint256 private constant TIMELOCK_COST = 300_000;
 
     // Main Export Function
-    function run() external {
+    function run() external pure {
         console.log("[EXPORTING ATTACK DATA TO JSON]");
 
         // Generate attack data
@@ -52,7 +52,7 @@ contract ExportData is Script {
         SummaryData memory summary = _calculateSummary(attacks);
 
         // Create JSON export
-        string memory json = _buildJSON(attacks, summary);
+        string memory json = _buildJson(attacks, summary);
 
         // Log JSON
         console.log("Exported JSON Data:");
@@ -73,7 +73,7 @@ contract ExportData is Script {
     }
 
     // Data Generation Functions
-    function _generateAttackData() internal view returns (AttackData[5] memory) {
+    function _generateAttackData() internal pure returns (AttackData[5] memory) {
         AttackData[5] memory attacks;
 
         // 1. Flash Loan Attack
@@ -134,11 +134,7 @@ contract ExportData is Script {
         return attacks;
     }
 
-    function _calculateSummary(AttackData[5] memory attacks)
-        internal
-        pure
-        returns (SummaryData memory)
-    {
+    function _calculateSummary(AttackData[5] memory attacks) internal pure returns (SummaryData memory) {
         uint256 successCount = 0;
         uint256 totalExtracted = 0;
         uint256 totalCost = 0;
@@ -180,9 +176,9 @@ contract ExportData is Script {
     }
 
     // JSON Building
-    function _buildJSON(AttackData[5] memory attacks, SummaryData memory summary)
+    function _buildJson(AttackData[5] memory attacks, SummaryData memory summary)
         internal
-        view
+        pure
         returns (string memory)
     {
         string memory json = "{\n";
@@ -205,7 +201,7 @@ contract ExportData is Script {
         json = string(abi.encodePacked(json, '  "attacks": [\n'));
 
         for (uint256 i = 0; i < 5; i++) {
-            json = string(abi.encodePacked(json, _buildAttackJSON(attacks[i], i == 4)));
+            json = string(abi.encodePacked(json, _buildAttackJson(attacks[i], i == 4)));
         }
 
         json = string(abi.encodePacked(json, "  ],\n"));
@@ -242,11 +238,7 @@ contract ExportData is Script {
         return json;
     }
 
-    function _buildAttackJSON(AttackData memory attack, bool isLast)
-        internal
-        pure
-        returns (string memory)
-    {
+    function _buildAttackJson(AttackData memory attack, bool isLast) internal pure returns (string memory) {
         string memory json = "    {\n";
 
         json = string(
@@ -306,11 +298,7 @@ contract ExportData is Script {
         return string(buffer);
     }
 
-    function _compareRisks(string memory risk1, string memory risk2)
-        internal
-        pure
-        returns (int256)
-    {
+    function _compareRisks(string memory risk1, string memory risk2) internal pure returns (int256) {
         uint256 severity1 = _getRiskSeverity(risk1);
         uint256 severity2 = _getRiskSeverity(risk2);
 
@@ -327,11 +315,7 @@ contract ExportData is Script {
         return 0;
     }
 
-    function _stringsEqual(string memory a, string memory b)
-        internal
-        pure
-        returns (bool)
-    {
+    function _stringsEqual(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 }

