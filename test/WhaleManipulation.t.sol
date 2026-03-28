@@ -193,7 +193,8 @@ contract WhaleManipulationTest is Test {
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
         // Move to voting
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         // Whale votes For (own proposal)
         vm.prank(whale);
@@ -226,7 +227,8 @@ contract WhaleManipulationTest is Test {
         vm.prank(minority1);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         // Majority votes Against (all minorities vote For)
         vm.prank(minority1);
@@ -271,7 +273,8 @@ contract WhaleManipulationTest is Test {
         vm.prank(whale);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         // Only whale votes
         vm.prank(whale);
@@ -306,7 +309,8 @@ contract WhaleManipulationTest is Test {
         vm.prank(whale);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         vm.prank(whale);
         governor.castVote(proposalId, 1);
@@ -340,7 +344,8 @@ contract WhaleManipulationTest is Test {
         vm.prank(whale);
         uint256 proposalId1 = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + 2);
+        (uint256 voteStart1,) = governor.proposalSnapshot(proposalId1);
+        vm.roll(voteStart1 + 1);
 
         vm.prank(whale);
         governor.castVote(proposalId1, 1);
@@ -393,7 +398,8 @@ contract WhaleManipulationTest is Test {
         vm.prank(minority1);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         // All minorities vote For (majority agrees)
         vm.prank(minority1);
@@ -521,7 +527,8 @@ contract WhaleManipulationTest is Test {
         vm.prank(whale);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         vm.prank(whale);
         uint256 castVoteWeight = governor.castVote(proposalId, 1);

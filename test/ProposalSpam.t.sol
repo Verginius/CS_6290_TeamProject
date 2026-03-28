@@ -328,7 +328,8 @@ contract ProposalSpamTest is Test {
         uint256 legitimateId = _proposeNoOp(legitimateProposer, "IMPORTANT: Governance Parameter Change");
 
         // Move to voting
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(legitimateId);
+        vm.roll(voteStart + 1);
 
         // Even though this is important, voters are fatigued
         // Test would verify low participation here

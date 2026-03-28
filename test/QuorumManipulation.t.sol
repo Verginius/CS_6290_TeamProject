@@ -155,7 +155,8 @@ contract QuorumManipulationTest is Test {
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
         // Move to voting phase
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         // Only attacker votes (with their small delegation)
         // With zero quorum, this is enough
@@ -192,7 +193,8 @@ contract QuorumManipulationTest is Test {
         vm.prank(legitimateVoter1);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         // Single vote should satisfy zero quorum
         vm.prank(legitimateVoter1);
@@ -259,7 +261,8 @@ contract QuorumManipulationTest is Test {
         vm.prank(legitimateVoter1);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         // Coordinate: all vote For
         for (uint256 i = 0; i < 5; ++i) {
@@ -296,7 +299,8 @@ contract QuorumManipulationTest is Test {
         vm.prank(legitimateVoter1);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         // Only one vote For
         vm.prank(legitimateVoter1);
@@ -350,7 +354,8 @@ contract QuorumManipulationTest is Test {
         vm.prank(legitimateVoter1);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         // Single vote is insufficient for 2% quorum
         vm.prank(attacker);
@@ -445,7 +450,8 @@ contract QuorumManipulationTest is Test {
             vm.prank(legitimateVoter1);
             uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-            vm.roll(block.number + 2);
+            (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+            vm.roll(voteStart + 1);
 
             // Minimal voting on each
             vm.prank(attacker);
@@ -487,7 +493,8 @@ contract QuorumManipulationTest is Test {
         vm.prank(legitimateVoter1);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + 2);
+        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
+        vm.roll(voteStart + 1);
 
         // Attacker votes despite 0 tokens (in reality, would use sybil accounts)
         // This test demonstrates the conceptual vulnerability
