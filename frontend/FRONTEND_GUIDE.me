@@ -1,0 +1,99 @@
+# Governance Attack Simulator – Frontend User Guide
+
+## Dashboard Overview
+
+The dashboard consists of 7 main pages accessible from the left sidebar:
+
+1. **Overview** – Summary of current risk, treasury balance, active governance, and attack events.
+2. **Attack Simulation** – Run live attacks (Flash Loan, Whale Manipulation, Proposal Spam, Quorum Manipulation, Timelock Exploit) with real blockchain transactions.
+3. **Comparative Analysis** – Compare attack success rates under different defense configurations.
+4. **Governance Monitor** – View active proposals, vote counts, token distribution, and real-time voting activity.
+5. **Economic Analysis** – Examine attack costs, ROI, break‑even points, and defense investment efficiency.
+6. **Defense Lab** – Configure and test independent defense mechanisms (Voting Delay, Snapshot Voting, Token Locking, Dynamic Quorum, Emergency Pause).
+7. **Historical Data** – Explore trends in attack frequency, success rates, costs, and defense adoption over time.
+
+## Page-by-Page Instructions
+
+### Overview
+- **Risk Level** – A colored indicator showing the current risk (low/medium/high). The score is based on recent attack activity and treasury health.
+- **Treasury Overview** – Displays the ETH balance of the mock treasury. Click **Update** to refresh.
+- **Active Governance** – Number of proposals currently in voting or pending execution.
+- **Attack Events** – Count of in‑progress and successfully defended attacks.
+- **Heatmap** – 24‑hour fund flow volume. Hover over the area to see exact values.
+
+### Attack Simulation
+- **Mode Toggle** – Choose between **No Defense** (vulnerable governance) and **With Defense** (hardened governance).
+- **Start / Pause / Reset** – Control the simulation. When started, a real transaction is sent to the blockchain.
+- **Attack Type** – Select from five attack vectors. The configuration parameters (loan amount, target contract, etc.) adjust automatically.
+- **Visualization** – The flow diagram shows the attack path from flash loan provider to treasury.
+- **Metrics** – Real‑time stats: funds transferred, attack cost, success probability, gas used.
+- **Logs** – Detailed step‑by‑step execution log with transaction hashes and confirmations.
+
+### Comparative Analysis
+- **Filter Bar** – Narrow results by attack type, time range, and sorting method.
+- **Success Rate Matrix** – Compare success rates across attack types for three defense levels (none, basic, enhanced).
+- **Cost‑Benefit Chart** – Dual‑axis bar chart showing attack cost (ETH) and success rate (%).
+- **Radar Chart** – Evaluates the effectiveness of each defense mechanism.
+- **ROI Cards** – Quick profitability metrics for each attack.
+
+### Governance Monitor
+- **Mode Toggle** – Switch between vulnerable and defense governance to see real proposal data (if any).
+- **Proposal Timeline** – Visual representation of proposal lifecycle stages.
+- **Active Proposals** – Cards with support rate and risk level. Click to expand details.
+- **Token Distribution** – Pie chart showing token holder concentration (mock data).
+- **Voting Pattern** – Stacked bar chart of support/against/abstain for recent proposals.
+- **Real‑time Voting Monitor** – Live feed of votes as they are cast on the blockchain.
+
+### Economic Analysis
+- **Parameter Panel** – Adjust token price, gas price, and ETH price. Click **Update** to recalculate all metrics.
+- **Cost Breakdown** – Pie chart and table detailing attack costs.
+- **ROI Calculator** – Shows expected profit and ROI based on target funds.
+- **Break‑even Analysis** – Line chart showing profit vs. target amount.
+- **Sensitivity Analysis** – Impact of parameter changes on success rate.
+- **Defense ROI** – Bar chart comparing investment vs. savings for each defense.
+
+### Defense Lab
+- **Preset Scenarios** – Pre‑configured defense settings for specific attack types. Choose from the dropdown or click **Custom Config** to start fresh.
+- **Defense Panels** – Toggle each defense on/off and adjust parameters:
+  - **Voting Delay** – Set the number of blocks between proposal creation and voting start.
+  - **Snapshot Voting** – Enable/disable freezing vote weight at proposal creation.
+  - **Token Locking** – Specify lock period (blocks) for voting tokens.
+  - **Dynamic Quorum** – Configure min/max quorum (basis points) and rolling window size.
+  - **Emergency Pause** – Set the guardian address (normally the deployer).
+- **Real‑time Effect Preview** – Shows how the current configuration reduces attack success probability.
+- **Impact Analysis** – Estimated changes to attack cost, success rate, and gas consumption.
+- **Trade‑off Analysis** – Security, efficiency, and cost scores based on the selected defenses.
+- **Stress Test Console** – Simulate concurrent attacks (mock results when backend is not available).
+
+### Historical Data
+- **Time Range Selector** – Choose 1d, 7d, 30d, 90d, or custom range.
+- **Attack Frequency Trend** – Line chart showing frequency of each attack type over time.
+- **Success Rate Trend** – Area chart showing success rate trends.
+- **Attack Cost Trend** – Bar chart of average and median attack costs.
+- **Defense Adoption Trend** – Stacked area chart of adoption rates for each defense.
+- **Correlation Matrix** – Heatmap of correlations between attack frequency, success rate, cost, and defense adoption.
+- **Prediction Analysis** – Forecasts for next 30 days and a recommended defense upgrade.
+
+## Using Demo Mode
+
+If the backend API or Anvil is not available, the dashboard automatically falls back to mock data. All pages remain functional, and you can still explore the UI. When real data becomes available, the pages will seamlessly switch.
+
+## Exporting Charts
+
+On pages where chart export is supported (e.g., Comparative Analysis, Economic Analysis), click the **Export** button to download the chart as a PNG or SVG.
+
+## Tips & Best Practices
+
+- **Always keep Anvil running** – If you restart Anvil, you must redeploy contracts and update `.env` addresses.
+- **Check browser console** – Look for errors if data doesn’t load.
+- **Use the “With Defense” mode** to see how governance can resist attacks.
+- **In the Defense Lab**, experiment with different parameters to see how they affect security vs. efficiency.
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| No data shows | Ensure Anvil is running and contracts are deployed. Check `.env` for correct addresses. |
+| Transaction fails | Verify that you have enough ETH (the first Anvil account has 10,000 ETH). Also check that the contract method you're calling exists. |
+| Loading spinner never disappears | Network issue – check that the backend API is reachable, or that Anvil RPC is responding. |
+| Charts don't render | Inspect the browser console for JavaScript errors. Often a missing data field or type mismatch. |
