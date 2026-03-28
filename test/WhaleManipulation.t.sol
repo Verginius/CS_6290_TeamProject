@@ -80,7 +80,7 @@ contract WhaleManipulationTest is Test {
     uint256 public constant INITIAL_SUPPLY = 100_000e18;
     uint256 public constant WHALE_TOKENS = 51_000e18; // 51% - majority
     uint256 public constant MINORITY_TOKENS = 12_250e18; // ~12% each
-    uint256 public constant TREASURY_AMOUNT = 50_000e18;
+    uint256 public constant TREASURY_AMOUNT = 10_000e18;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Setup

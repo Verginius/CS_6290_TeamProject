@@ -299,7 +299,7 @@ contract QuorumManipulationTest is Test {
         vm.roll(block.number + 2);
 
         // Only one vote For
-        vm.prank(attacker);
+        vm.prank(legitimateVoter1);
         governor.castVote(proposalId, 1);
 
         vm.roll(block.number + 101);
@@ -464,7 +464,7 @@ contract QuorumManipulationTest is Test {
         uint256 actualVoters = token.getVotes(legitimateVoter1) + token.getVotes(legitimateVoter2);
 
         // This is a simplified participation calculation
-        assertGe(potentialVoters, actualVoters);
+        assertGe(actualVoters, potentialVoters);
     }
 
     /// @notice Attacker with small amount can influence outcomes

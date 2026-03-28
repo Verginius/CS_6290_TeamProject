@@ -231,7 +231,6 @@ contract ProposalSpamTest is Test {
 
         // Spammer still has 0 tokens
         // Should revert due to threshold
-        vm.prank(spammer);
         vm.expectRevert();
         _proposeNoOp(spammer, "Spam Proposal: Should fail");
     }
