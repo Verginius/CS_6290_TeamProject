@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test} from "forge-std/Test.sol";
 import {GovernorVulnerable, ITokenVotes} from "../src/governance/GovernorVulnerable.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
+import {TestHelpers} from "./{helpers}/TestHelpers.sol";
+import {AttackScenarios} from "./{helpers}/AttackScenarios.sol";
 
 /**
  * @title GovernorVulnerableTest
@@ -148,11 +149,12 @@ contract ReentrantTarget {
  *   - Voting logic (for / against / abstain)
  *   - Each documented vulnerability (VULN-1 through VULN-8)
  */
-contract GovernorVulnerableTest is Test {
+contract GovernorVulnerableTest is TestHelpers {
     // ── Contracts ────────────────────────────────────────────────────────────
     GovernorVulnerable public governor;
     GovernanceToken public token;
     DummyTarget public target;
+    AttackScenarios public scenarios;
 
     // ── Actors ───────────────────────────────────────────────────────────────
     address public admin = makeAddr("admin");
@@ -186,6 +188,7 @@ contract GovernorVulnerableTest is Test {
 
         // Deploy dummy target
         target = new DummyTarget();
+        scenarios = new AttackScenarios();
 
         // Distribute tokens
         require(token.transfer(user1, USER_TOKENS), "transfer failed");
@@ -195,12 +198,11 @@ contract GovernorVulnerableTest is Test {
         vm.stopPrank();
 
         // Self-delegate so votes are active
-        vm.prank(user1);
-        token.delegate(user1);
-        vm.prank(user2);
-        token.delegate(user2);
-        vm.prank(user3);
-        token.delegate(user3);
+        address[] memory delegates = new address[](3);
+        delegates[0] = user1;
+        delegates[1] = user2;
+        delegates[2] = user3;
+        _batchDelegateSelf(token, delegates);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -266,12 +268,9 @@ contract GovernorVulnerableTest is Test {
     function test_lifecycle_Succeeded() public {
         (uint256 proposalId,,,,) = _createSimpleProposal();
 
-        vm.roll(block.number + VOTING_DELAY + 1);
-
-        vm.prank(user1);
-        governor.castVote(proposalId, 1); // For
-
-        vm.roll(block.number + VOTING_PERIOD + 1);
+        _moveToVotingStart(governor, proposalId);
+        _castVote(governor, proposalId, user1, VOTE_FOR);
+        _movePastVotingEnd(governor, proposalId);
         assertEq(uint8(governor.state(proposalId)), uint8(GovernorVulnerable.ProposalState.Succeeded));
     }
 
@@ -287,11 +286,9 @@ contract GovernorVulnerableTest is Test {
             string memory description
         ) = _createSimpleProposal();
 
-        vm.roll(block.number + VOTING_DELAY + 1);
-        vm.prank(user1);
-        governor.castVote(proposalId, 1);
-
-        vm.roll(block.number + VOTING_PERIOD + 1);
+        _moveToVotingStart(governor, proposalId);
+        _castVote(governor, proposalId, user1, VOTE_FOR);
+        _movePastVotingEnd(governor, proposalId);
 
         governor.execute(targets, values, calldatas, keccak256(bytes(description)));
 
@@ -305,11 +302,9 @@ contract GovernorVulnerableTest is Test {
     function test_lifecycle_Defeated() public {
         (uint256 proposalId,,,,) = _createSimpleProposal();
 
-        vm.roll(block.number + VOTING_DELAY + 1);
-        vm.prank(user1);
-        governor.castVote(proposalId, 0); // Against
-
-        vm.roll(block.number + VOTING_PERIOD + 1);
+        _moveToVotingStart(governor, proposalId);
+        _castVote(governor, proposalId, user1, VOTE_AGAINST);
+        _movePastVotingEnd(governor, proposalId);
         assertEq(uint8(governor.state(proposalId)), uint8(GovernorVulnerable.ProposalState.Defeated));
     }
 
@@ -340,16 +335,11 @@ contract GovernorVulnerableTest is Test {
      */
     function test_voting_tallies() public {
         (uint256 proposalId,,,,) = _createSimpleProposal();
-        vm.roll(block.number + VOTING_DELAY + 1);
+        _moveToVotingStart(governor, proposalId);
 
-        vm.prank(user1);
-        governor.castVote(proposalId, 1); // For
-
-        vm.prank(user2);
-        governor.castVote(proposalId, 0); // Against
-
-        vm.prank(user3);
-        governor.castVote(proposalId, 2); // Abstain
+        _castVote(governor, proposalId, user1, VOTE_FOR);
+        _castVote(governor, proposalId, user2, VOTE_AGAINST);
+        _castVote(governor, proposalId, user3, VOTE_ABSTAIN);
 
         (uint256 against, uint256 forVotes, uint256 abstain) = governor.proposalVotes(proposalId);
         assertEq(forVotes, USER_TOKENS, "for votes mismatch");
@@ -362,7 +352,7 @@ contract GovernorVulnerableTest is Test {
      */
     function test_voting_withReason() public {
         (uint256 proposalId,,,,) = _createSimpleProposal();
-        vm.roll(block.number + VOTING_DELAY + 1);
+        _moveToVotingStart(governor, proposalId);
 
         vm.prank(user1);
         governor.castVoteWithReason(proposalId, 1, "I support this proposal");
@@ -376,7 +366,7 @@ contract GovernorVulnerableTest is Test {
      */
     function test_voting_invalidSupport() public {
         (uint256 proposalId,,,,) = _createSimpleProposal();
-        vm.roll(block.number + VOTING_DELAY + 1);
+        _moveToVotingStart(governor, proposalId);
 
         vm.prank(user1);
         vm.expectRevert("GovernorVulnerable: invalid support value");
@@ -422,7 +412,7 @@ contract GovernorVulnerableTest is Test {
      */
     function test_VULN1_flashLoanVoting() public {
         (uint256 proposalId,,,,) = _createSimpleProposal();
-        vm.roll(block.number + VOTING_DELAY + 1);
+        _moveToVotingStart(governor, proposalId);
 
         // Attacker has no tokens yet
         assertEq(token.getVotes(attacker), 0);
@@ -433,10 +423,8 @@ contract GovernorVulnerableTest is Test {
         require(token.transfer(attacker, flashAmount), "transfer failed");
         vm.stopPrank();
 
-        vm.startPrank(attacker);
-        token.delegate(attacker); // activate voting power
-        governor.castVote(proposalId, 1); // vote with flash-loaned tokens
-        vm.stopPrank();
+        _delegateSelf(token, attacker);
+        _castVote(governor, proposalId, attacker, VOTE_FOR);
 
         (, uint256 forVotes,) = governor.proposalVotes(proposalId);
         // The attacker's enormous flash-loaned weight was accepted
@@ -451,7 +439,7 @@ contract GovernorVulnerableTest is Test {
      */
     function test_VULN2_doubleVoting() public {
         (uint256 proposalId,,,,) = _createSimpleProposal();
-        vm.roll(block.number + VOTING_DELAY + 1);
+        _moveToVotingStart(governor, proposalId);
 
         vm.startPrank(user1);
         governor.castVote(proposalId, 1);
@@ -478,12 +466,11 @@ contract GovernorVulnerableTest is Test {
             string memory description
         ) = _createSimpleProposal();
 
-        vm.roll(block.number + VOTING_DELAY + 1);
-        vm.prank(user1);
-        governor.castVote(proposalId, 1);
+        _moveToVotingStart(governor, proposalId);
+        _castVote(governor, proposalId, user1, VOTE_FOR);
 
         // Jump to exactly one block after voting ends — no buffer delay exists
-        vm.roll(block.number + VOTING_PERIOD + 1);
+        _movePastVotingEnd(governor, proposalId);
 
         governor.execute(targets, values, calldatas, keccak256(bytes(description)));
         assertEq(target.callCount(), 1, "VULN-3: executed with no timelock delay");
@@ -496,12 +483,8 @@ contract GovernorVulnerableTest is Test {
      */
     function test_VULN4_zeroProposalThreshold() public {
         assertEq(token.getVotes(attacker), 0, "attacker should have no votes");
-
-        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description) =
-            _simpleProposal();
-
-        vm.prank(attacker);
-        uint256 id = governor.propose(targets, values, calldatas, description);
+        uint256[] memory ids = scenarios.runProposalSpamScenario(governor, attacker, 1);
+        uint256 id = ids[0];
 
         assertTrue(id != 0, "VULN-4: zero-balance address created proposal");
     }
@@ -516,8 +499,7 @@ contract GovernorVulnerableTest is Test {
         // Give attacker a negligible amount
         vm.prank(admin);
         require(token.transfer(attacker, 1), "transfer failed");
-        vm.prank(attacker);
-        token.delegate(attacker);
+        _delegateSelf(token, attacker);
 
         (address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description) =
             _simpleProposal();
@@ -525,12 +507,11 @@ contract GovernorVulnerableTest is Test {
         vm.prank(attacker);
         uint256 id = governor.propose(targets, values, calldatas, description);
 
-        vm.roll(block.number + VOTING_DELAY + 1);
+        _moveToVotingStart(governor, id);
 
-        vm.prank(attacker);
-        governor.castVote(id, 1); // 1 token = all votes needed
+        _castVote(governor, id, attacker, VOTE_FOR); // 1 token = all votes needed
 
-        vm.roll(block.number + VOTING_PERIOD + 1);
+        _movePastVotingEnd(governor, id);
 
         assertEq(
             uint8(governor.state(id)),
@@ -582,11 +563,10 @@ contract GovernorVulnerableTest is Test {
         // is true and the outer execute does not revert.
         uint256 proposalId = governor.hashProposal(targets, values, calldatas, descriptionHash);
 
-        vm.roll(block.number + VOTING_DELAY + 1);
-        vm.prank(user1);
-        governor.castVote(proposalId, 1);
+        _moveToVotingStart(governor, proposalId);
+        _castVote(governor, proposalId, user1, VOTE_FOR);
 
-        vm.roll(block.number + VOTING_PERIOD + 1);
+        _movePastVotingEnd(governor, proposalId);
 
         // Execute — reentrant target will attempt re-entry inside maliciousAction()
         governor.execute(targets, values, calldatas, descriptionHash);
@@ -611,12 +591,11 @@ contract GovernorVulnerableTest is Test {
             string memory description
         ) = _createSimpleProposal();
 
-        vm.roll(block.number + VOTING_DELAY + 1);
+        _moveToVotingStart(governor, proposalId);
         assertEq(uint8(governor.state(proposalId)), uint8(GovernorVulnerable.ProposalState.Active));
 
         // user2 votes for — would have succeeded
-        vm.prank(user2);
-        governor.castVote(proposalId, 1);
+        _castVote(governor, proposalId, user2, VOTE_FOR);
 
         // Proposer (user1) cancels the active proposal
         vm.prank(user1);
@@ -649,11 +628,10 @@ contract GovernorVulnerableTest is Test {
             string memory description
         ) = _createSimpleProposal();
 
-        vm.roll(block.number + VOTING_DELAY + 1);
-        vm.prank(user1);
-        governor.castVote(proposalId, 1);
+        _moveToVotingStart(governor, proposalId);
+        _castVote(governor, proposalId, user1, VOTE_FOR);
 
-        vm.roll(block.number + VOTING_PERIOD + 1);
+        _movePastVotingEnd(governor, proposalId);
 
         // Execute with the correct hash — the contract only hashes the provided
         // arrays; it never re-reads the stored targets/calldatas for execution.

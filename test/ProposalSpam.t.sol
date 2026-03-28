@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test} from "forge-std/Test.sol";
 import {ProposalSpam} from "../src/attacks/ProposalSpam.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorVulnerable, ITokenVotes} from "../src/governance/GovernorVulnerable.sol";
 import {Timelock} from "../src/governance/Timelock.sol";
+import {TestHelpers} from "./{helpers}/TestHelpers.sol";
+import {AttackScenarios} from "./{helpers}/AttackScenarios.sol";
 
 /**
  * @title ProposalSpamTest
@@ -40,12 +41,13 @@ import {Timelock} from "../src/governance/Timelock.sol";
  * ============================================================
  */
 
-contract ProposalSpamTest is Test {
+contract ProposalSpamTest is TestHelpers {
     // ─────────────────────────────────────────────────────────────────────────
     // Contracts
     // ─────────────────────────────────────────────────────────────────────────
 
     ProposalSpam public spamAttack;
+    AttackScenarios public scenarios;
     GovernanceToken public token;
     GovernorVulnerable public governor;
     Timelock public timelock;
@@ -100,30 +102,22 @@ contract ProposalSpamTest is Test {
         vm.stopPrank();
 
         // 5. Self-delegate
-        vm.prank(legitimateProposer);
-        token.delegate(legitimateProposer);
-        vm.prank(voter1);
-        token.delegate(voter1);
+        address[] memory delegates = new address[](2);
+        delegates[0] = legitimateProposer;
+        delegates[1] = voter1;
+        _batchDelegateSelf(token, delegates);
 
         vm.roll(block.number + 1);
 
         // 6. Initialize spam attack contract
         spamAttack = new ProposalSpam(address(governor));
+        scenarios = new AttackScenarios();
     }
 
     /// @dev Creates a minimal no-op proposal for a given proposer.
     function _proposeNoOp(address proposer, string memory description) internal returns (uint256 proposalId) {
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        vm.prank(proposer);
-        proposalId = governor.propose(targets, values, calldatas, description);
+        ProposalPayload memory payload = _buildNoOpProposal(description);
+        proposalId = _propose(governor, proposer, payload);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -164,11 +158,10 @@ contract ProposalSpamTest is Test {
 
     /// @notice Can create multiple spam proposals
     function testCreateMultipleSpamProposals() public {
-        for (uint256 i = 1; i <= NUM_SPAM_PROPOSALS; ++i) {
-            string memory description = string(abi.encodePacked("Spam Proposal #", vm.toString(i)));
-            uint256 proposalId = _proposeNoOp(spammer, description);
+        uint256[] memory proposalIds = scenarios.runProposalSpamScenario(governor, spammer, NUM_SPAM_PROPOSALS);
 
-            assertGt(proposalId, 0);
+        for (uint256 i = 0; i < proposalIds.length; ++i) {
+            assertGt(proposalIds[i], 0);
         }
 
         // Verify proposals were created (note: proposalCount not available in GovernorVulnerable)
@@ -195,19 +188,15 @@ contract ProposalSpamTest is Test {
     /// @notice Legitimate proposals become buried among spam
     function testBuryLegitimateProposal() public {
         // Create spam proposals first
-        for (uint256 i = 0; i < 5; ++i) {
-            string memory spamDescription = string(abi.encodePacked("Spam #", vm.toString(i)));
-            _proposeNoOp(spammer, spamDescription);
-        }
+        uint256[] memory earlySpamIds = scenarios.runProposalSpamScenario(governor, spammer, 5);
+        assertEq(earlySpamIds.length, 5);
 
         // Then create legitimate proposal
         uint256 legitimateProposalId = _proposeNoOp(legitimateProposer, "IMPORTANT: Legitimate Governance Proposal");
 
         // More spam after legitimate proposal
-        for (uint256 i = 5; i < 10; ++i) {
-            string memory descSpam = string(abi.encodePacked("Spam #", vm.toString(i)));
-            _proposeNoOp(spammer, descSpam);
-        }
+        uint256[] memory lateSpamIds = scenarios.runProposalSpamScenario(governor, spammer, 5);
+        assertEq(lateSpamIds.length, 5);
 
         // Legitimate proposal is now buried among many proposals
         assertGt(legitimateProposalId, 0, "Legitimate proposal should be created");

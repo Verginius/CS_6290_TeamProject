@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test} from "forge-std/Test.sol";
-import {Vm} from "forge-std/Vm.sol";
 import {FlashLoanAttack} from "../src/attacks/FlashLoanAttack.sol";
+import {VmSafe} from "forge-std/Vm.sol";
 import {MockFlashLoanProvider} from "../src/mocks/MockFlashLoanProvider.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorVulnerable, ITokenVotes} from "../src/governance/GovernorVulnerable.sol";
 import {Timelock} from "../src/governance/Timelock.sol";
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
+import {TestHelpers} from "./{helpers}/TestHelpers.sol";
 
 /**
  * @title FlashLoanAttackTest
@@ -52,7 +52,7 @@ import {MockTreasury} from "../src/mocks/MockTreasury.sol";
  * ============================================================
  */
 
-contract FlashLoanAttackTest is Test {
+contract FlashLoanAttackTest is TestHelpers {
     // ─────────────────────────────────────────────────────────────────────────
     // Contracts
     // ─────────────────────────────────────────────────────────────────────────
@@ -126,8 +126,7 @@ contract FlashLoanAttackTest is Test {
         vm.stopPrank();
 
         // 8. Self-delegate to activate voting power
-        vm.prank(user1);
-        token.delegate(user1);
+        _delegateSelf(token, user1);
 
         vm.roll(block.number + 1);
     }
@@ -388,7 +387,7 @@ contract FlashLoanAttackTest is Test {
         vm.prank(attacker);
         attack.executeAttack(FLASH_LOAN_AMOUNT, TREASURY_DRAIN_AMOUNT);
 
-        Vm.Log[] memory logs = vm.getRecordedLogs();
+        VmSafe.Log[] memory logs = vm.getRecordedLogs();
         assertGt(logs.length, 0, "Expected at least one event to be emitted during attack");
 
         bool foundRelevantEmitter = false;
