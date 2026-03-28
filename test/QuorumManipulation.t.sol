@@ -99,11 +99,11 @@ contract QuorumManipulationTest is Test {
         signers[0] = admin;
         treasury = new MockTreasury(signers, 1, 100 ether);
         vm.deal(address(treasury), 100 ether);
-        token.transfer(address(treasury), 50_000e18);
+        require(token.transfer(address(treasury), 50_000e18), "transfer to treasury failed");
 
         // 5. Distribute tokens to legitimate voters
-        token.transfer(legitimateVoter1, USER_TOKENS);
-        token.transfer(legitimateVoter2, USER_TOKENS);
+        require(token.transfer(legitimateVoter1, USER_TOKENS), "transfer to legitimateVoter1 failed");
+        require(token.transfer(legitimateVoter2, USER_TOKENS), "transfer to legitimateVoter2 failed");
 
         vm.stopPrank();
 
@@ -233,7 +233,7 @@ contract QuorumManipulationTest is Test {
         for (uint256 i = 0; i < 5; ++i) {
             voterAccounts[i] = makeAddr(string(abi.encodePacked("voter", vm.toString(i))));
             vm.prank(admin);
-            token.transfer(voterAccounts[i], tokensPerAccount);
+            require(token.transfer(voterAccounts[i], tokensPerAccount), "transfer to voter account failed");
         }
 
         // Self-delegate

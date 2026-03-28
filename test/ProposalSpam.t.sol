@@ -93,8 +93,8 @@ contract ProposalSpamTest is Test {
         );
 
         // 4. Distribute tokens
-        token.transfer(legitimateProposer, USER_TOKENS);
-        token.transfer(voter1, USER_TOKENS);
+        require(token.transfer(legitimateProposer, USER_TOKENS), "transfer to legitimate proposer failed");
+        require(token.transfer(voter1, USER_TOKENS), "transfer to voter1 failed");
         // spammer gets NO tokens intentionally
 
         vm.stopPrank();
@@ -290,8 +290,8 @@ contract ProposalSpamTest is Test {
 
     /// @notice Spam proposals can exist alongside normal governance
     function testSpamAndNormalProposalsCoexist() public {
-        uint256 spam_count = 0;
-        uint256 legitimate_count = 0;
+        uint256 spamCount = 0;
+        uint256 legitimateCount = 0;
 
         // Create alternating spam and legitimate proposals
         for (uint256 i = 0; i < 6; ++i) {
@@ -302,20 +302,20 @@ contract ProposalSpamTest is Test {
                 // Spam
                 description = string(abi.encodePacked("SPAM #", vm.toString(i)));
                 proposer = spammer;
-                spam_count++;
+                spamCount++;
             } else {
                 // Legitimate
                 description = string(abi.encodePacked("LEGITIMATE #", vm.toString(i)));
                 proposer = legitimateProposer;
-                legitimate_count++;
+                legitimateCount++;
             }
 
             _proposeNoOp(proposer, description);
         }
 
         // Verify proposals were created
-        assertEq(spam_count, 3);
-        assertEq(legitimate_count, 3);
+        assertEq(spamCount, 3);
+        assertEq(legitimateCount, 3);
     }
 
     /// @notice Low participation expected with high spam count

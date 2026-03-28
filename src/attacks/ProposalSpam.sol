@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title ProposalSpam
@@ -341,12 +340,11 @@ contract ProposalSpam {
             j /= 10;
         }
         bytes memory bstr = new bytes(len);
+        bytes memory digits = "0123456789";
         uint256 k = len;
         while (_i != 0) {
-            k = k - 1;
-            uint8 temp = (48 + uint8(_i - (_i / 10) * 10));
-            bytes1 b1 = bytes1(temp);
-            bstr[k] = b1;
+            k--;
+            bstr[k] = digits[_i % 10];
             _i /= 10;
         }
         return string(bstr);

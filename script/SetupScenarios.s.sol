@@ -11,7 +11,6 @@ import {GovernorWithDefenses, ITokenVotes as ITokenVotesDefenses} from "../src/g
 import {Timelock} from "../src/governance/Timelock.sol";
 
 // Mock Contracts
-import {MockToken} from "../src/mocks/MockToken.sol";
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
 
 /**
@@ -213,6 +212,8 @@ contract SetupScenarios is Script {
             uint256 amountPerAddress = TOTAL_SUPPLY / 100;
 
             for (uint256 i = 0; i < 100; i++) {
+                // casting to 'uint160' is safe because generated addresses use small bounded constants
+                // forge-lint: disable-next-line(unsafe-typecast)
                 address recipient = address(uint160(0x1000 + i));
                 token.mint(recipient, amountPerAddress);
             }
@@ -222,6 +223,8 @@ contract SetupScenarios is Script {
             uint256 avgAmount = TOTAL_SUPPLY / 50;
 
             for (uint256 i = 0; i < 50; i++) {
+                // casting to 'uint160' is safe because generated addresses use small bounded constants
+                // forge-lint: disable-next-line(unsafe-typecast)
                 address recipient = address(uint160(0x2000 + i));
                 uint256 amount;
 
@@ -248,6 +251,8 @@ contract SetupScenarios is Script {
             console.log("  (Minting to 1000 addresses batched to save gas)");
 
             for (uint256 i = 0; i < 100; i++) {
+                // casting to 'uint160' is safe because generated addresses use small bounded constants
+                // forge-lint: disable-next-line(unsafe-typecast)
                 address recipient = address(uint160(0x3000 + i));
                 token.mint(recipient, amountPerAddress);
             }

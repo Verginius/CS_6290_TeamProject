@@ -419,7 +419,7 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     /**
      * @notice Get ETH balance
      */
-    function getETHBalance() external view returns (uint256) {
+    function getEthBalance() external view returns (uint256) {
         return address(this).balance;
     }
 
@@ -505,7 +505,11 @@ contract MockTreasury is Ownable, ReentrancyGuard {
      * @notice Restrict function to authorized signers
      */
     modifier onlySigner() {
-        require(isSigner[msg.sender], "Not authorized");
+        _onlySigner();
         _;
+    }
+
+    function _onlySigner() internal view {
+        require(isSigner[msg.sender], "Not authorized");
     }
 }

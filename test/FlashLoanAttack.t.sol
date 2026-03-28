@@ -114,13 +114,13 @@ contract FlashLoanAttackTest is Test {
 
         // 5. Fund the treasury
         vm.deal(address(treasury), 100 ether);
-        token.transfer(address(treasury), TREASURY_DRAIN_AMOUNT);
+        require(token.transfer(address(treasury), TREASURY_DRAIN_AMOUNT), "transfer to treasury failed");
 
         // 6. Create flash loan attack contract
         attack = new FlashLoanAttack(address(flashLoanProvider), address(token), address(governor), address(treasury));
 
         // 7. Fund the attacker account
-        token.transfer(attacker, 1000e18); // Small amount for proposing
+        require(token.transfer(attacker, 1000e18), "transfer to attacker failed"); // Small amount for proposing
 
         vm.stopPrank();
 
@@ -186,7 +186,10 @@ contract FlashLoanAttackTest is Test {
     function testExecuteAttackWithVulnerableGovernor() public {
         // Fund the flash loan provider with tokens
         vm.prank(admin);
-        token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18);
+        require(
+            token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18),
+            "transfer to flashLoanProvider failed"
+        );
 
         // Execute the attack
         vm.prank(attacker);
@@ -202,7 +205,10 @@ contract FlashLoanAttackTest is Test {
     function testAttackRefundsFlashLoan() public {
         // Fund the flash loan provider
         vm.prank(admin);
-        token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18);
+        require(
+            token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18),
+            "transfer to flashLoanProvider failed"
+        );
 
         uint256 providerInitialBalance = token.balanceOf(address(flashLoanProvider));
 
@@ -228,7 +234,10 @@ contract FlashLoanAttackTest is Test {
 
         // Fund the flash loan provider
         vm.prank(admin);
-        token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18);
+        require(
+            token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18),
+            "transfer to flashLoanProvider failed"
+        );
 
         // Verify the attack contract gets voting power when it receives tokens
         uint256 attackVotingPowerBefore = token.getVotes(address(attack));
@@ -246,7 +255,10 @@ contract FlashLoanAttackTest is Test {
     function testAttackCannotRepeatedlyBorrow() public {
         // Fund the flash loan provider
         vm.prank(admin);
-        token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT * 2 + 20000e18);
+        require(
+            token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT * 2 + 20000e18),
+            "transfer to flashLoanProvider failed"
+        );
 
         // First attack should succeed
         vm.prank(attacker);
@@ -286,7 +298,7 @@ contract FlashLoanAttackTest is Test {
     function testRecoverToken() public {
         // Transfer some tokens to the attack contract
         vm.prank(admin);
-        token.transfer(address(attack), 1000e18);
+        require(token.transfer(address(attack), 1000e18), "transfer to attack failed");
 
         uint256 balanceBefore = token.balanceOf(address(attack));
         assertEq(balanceBefore, 1000e18);
@@ -304,7 +316,7 @@ contract FlashLoanAttackTest is Test {
     /// @notice Only attacker can recover tokens
     function testRecoverTokenUnauthorized() public {
         vm.prank(admin);
-        token.transfer(address(attack), 1000e18);
+        require(token.transfer(address(attack), 1000e18), "transfer to attack failed");
 
         vm.prank(user1); // Not the attacker
         vm.expectRevert("Only attacker can recover");
@@ -321,7 +333,10 @@ contract FlashLoanAttackTest is Test {
 
         // Fund and execute attack
         vm.prank(admin);
-        token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18);
+        require(
+            token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18),
+            "transfer to flashLoanProvider failed"
+        );
 
         vm.prank(attacker);
         attack.executeAttack(FLASH_LOAN_AMOUNT, TREASURY_DRAIN_AMOUNT);
@@ -334,7 +349,10 @@ contract FlashLoanAttackTest is Test {
         assertEq(attack.getStolenAmount(), 0, "No amount stolen initially");
 
         vm.prank(admin);
-        token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18);
+        require(
+            token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18),
+            "transfer to flashLoanProvider failed"
+        );
 
         vm.prank(attacker);
         attack.executeAttack(FLASH_LOAN_AMOUNT, TREASURY_DRAIN_AMOUNT);
@@ -350,7 +368,10 @@ contract FlashLoanAttackTest is Test {
     /// @notice Attack triggers correct events when executed
     function testAttackEmitsEvents() public {
         vm.prank(admin);
-        token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18);
+        require(
+            token.transfer(address(flashLoanProvider), FLASH_LOAN_AMOUNT + 10000e18),
+            "transfer to flashLoanProvider failed"
+        );
 
         // Execute attack and verify it doesn't revert
         vm.prank(attacker);

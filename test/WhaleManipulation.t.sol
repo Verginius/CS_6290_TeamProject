@@ -107,11 +107,11 @@ contract WhaleManipulationTest is Test {
         vm.deal(address(treasury), 100 ether);
 
         // 5. Distribute tokens: whale gets 51%, minorities split 49%
-        token.transfer(whale, WHALE_TOKENS); // 51%
-        token.transfer(minority1, MINORITY_TOKENS); // 12.25%
-        token.transfer(minority2, MINORITY_TOKENS); // 12.25%
-        token.transfer(minority3, MINORITY_TOKENS); // 12.25%
-        token.transfer(address(treasury), TREASURY_AMOUNT);
+        require(token.transfer(whale, WHALE_TOKENS), "transfer to whale failed"); // 51%
+        require(token.transfer(minority1, MINORITY_TOKENS), "transfer to minority1 failed"); // 12.25%
+        require(token.transfer(minority2, MINORITY_TOKENS), "transfer to minority2 failed"); // 12.25%
+        require(token.transfer(minority3, MINORITY_TOKENS), "transfer to minority3 failed"); // 12.25%
+        require(token.transfer(address(treasury), TREASURY_AMOUNT), "transfer to treasury failed");
 
         vm.stopPrank();
 
@@ -403,7 +403,7 @@ contract WhaleManipulationTest is Test {
         governor.castVote(proposalId, 1);
 
         uint256 minorityTotal = MINORITY_TOKENS * 3;
-        assertEq(minorityTotal / 1e18 / (INITIAL_SUPPLY / 1e18) * 100, 36); // ~36%
+        assertEq((minorityTotal * 100) / INITIAL_SUPPLY, 36); // ~36%
 
         // Whale votes Against
         vm.prank(whale);

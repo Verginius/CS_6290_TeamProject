@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title WhaleManipulation
@@ -191,7 +190,7 @@ contract WhaleManipulation {
         calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", whale, treasuryDrainAmount);
 
         string memory description = "PROPOSAL: Whale Treasury Allocation - Emergency Deployment Funds";
-        bytes32 descriptionHash = keccak256(abi.encodePacked(description));
+        bytes32 descriptionHash = keccak256(bytes(description));
 
         // Create proposal
         uint256 proposalId = IGovernor(governor).propose(targets, values, calldatas, description);
@@ -260,7 +259,7 @@ contract WhaleManipulation {
 
             string memory description = string(abi.encodePacked("PROPOSAL: Whale Allocation Round ", _uint2str(i + 1)));
 
-            bytes32 descriptionHash = keccak256(abi.encodePacked(description));
+            bytes32 descriptionHash = keccak256(bytes(description));
 
             try IGovernor(governor).propose(targets, values, calldatas, description) returns (uint256 proposalId) {
                 // Vote for the proposal
@@ -343,12 +342,11 @@ contract WhaleManipulation {
             j /= 10;
         }
         bytes memory bstr = new bytes(len);
+        bytes memory digits = "0123456789";
         uint256 k = len;
         while (_i != 0) {
-            k = k - 1;
-            uint8 temp = (48 + uint8(_i - (_i / 10) * 10));
-            bytes1 b1 = bytes1(temp);
-            bstr[k] = b1;
+            k--;
+            bstr[k] = digits[_i % 10];
             _i /= 10;
         }
         return string(bstr);

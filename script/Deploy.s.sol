@@ -121,7 +121,11 @@ contract Deploy is Script {
             "Governor Base",
             govToken,
             timelock,
+            // casting to 'uint48' is safe because VOTING_DELAY is a small constant (1 block)
+            // forge-lint: disable-next-line(unsafe-typecast)
             uint48(VOTING_DELAY),
+            // casting to 'uint32' is safe because VOTING_PERIOD is a bounded constant (50400)
+            // forge-lint: disable-next-line(unsafe-typecast)
             uint32(VOTING_PERIOD),
             1e16, // 1% proposal threshold
             0.04e18 // 4% quorum
@@ -148,7 +152,11 @@ contract Deploy is Script {
             "Governor With Defenses",
             ITokenVotesDefenses(address(govToken)),
             timelock,
+            // casting to 'uint48' is safe because VOTING_DELAY is a small constant (1 block)
+            // forge-lint: disable-next-line(unsafe-typecast)
             uint48(VOTING_DELAY),
+            // casting to 'uint32' is safe because VOTING_PERIOD is a bounded constant (50400)
+            // forge-lint: disable-next-line(unsafe-typecast)
             uint32(VOTING_PERIOD),
             1e16, // 1% proposal threshold
             0.04e18 // 4% quorum
