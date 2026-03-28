@@ -7,8 +7,8 @@ pragma solidity ^0.8.20;
  * Reference: docs/specs/Defense_Mechanisms.md - Defense Layer 4
  */
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract StructuralControlDefense is Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -104,23 +104,39 @@ contract StructuralControlDefense is Ownable {
 
     // Modifiers
     modifier onlySigner() {
-        require(signers.contains(msg.sender), "Not a signer");
+        _onlySigner();
         _;
     }
 
     modifier onlyGuardian() {
-        require(guardians.contains(msg.sender), "Not a guardian");
+        _onlyGuardian();
         _;
     }
 
     modifier onlyPauseAdmin() {
-        require(pauseAdmins.contains(msg.sender), "Not a pause admin");
+        _onlyPauseAdmin();
         _;
     }
 
     modifier whenNotPaused() {
-        require(!isPaused, "Governance is paused");
+        _whenNotPaused();
         _;
+    }
+
+    function _onlySigner() internal view {
+        require(signers.contains(msg.sender), "Not a signer");
+    }
+
+    function _onlyGuardian() internal view {
+        require(guardians.contains(msg.sender), "Not a guardian");
+    }
+
+    function _onlyPauseAdmin() internal view {
+        require(pauseAdmins.contains(msg.sender), "Not a pause admin");
+    }
+
+    function _whenNotPaused() internal view {
+        require(!isPaused, "Governance is paused");
     }
 
     // Constructor
@@ -336,11 +352,13 @@ contract StructuralControlDefense is Ownable {
         pure
         returns (string memory)
     {
+        // forge-lint: disable-next-line(asm-keccak256)
         bytes32 hash = keccak256(abi.encodePacked(target, amount, signature, eta, timestamp));
         return string(abi.encodePacked(hash));
     }
 
     function generateExecutionHash(string memory txId) internal view returns (string memory) {
+        // forge-lint: disable-next-line(asm-keccak256)
         bytes32 hash = keccak256(abi.encodePacked(txId, block.timestamp));
         return string(abi.encodePacked(hash));
     }

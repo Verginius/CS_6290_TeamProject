@@ -8,7 +8,8 @@ import {console} from "forge-std/console.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorVulnerable, ITokenVotes as ITokenVotesVulnerable} from "../src/governance/GovernorVulnerable.sol";
 import {GovernorWithDefenses, ITokenVotes as ITokenVotesDefenses} from "../src/governance/GovernorWithDefenses.sol";
-import {Timelock} from "../src/governance/Timelock.sol";
+import {Timelock as GovernanceTimelock} from "../src/governance/Timelock.sol";
+import {TimeBasedDefenseConfig} from "../src/defenses/TimeBasedDefense.sol";
 
 // Mock Contracts
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
@@ -21,8 +22,6 @@ contract SetupScenarios is Script {
     uint256 private constant TOTAL_SUPPLY = 1_000_000_000e18;
     uint256 private constant VOTING_DELAY = 1;
     uint256 private constant VOTING_PERIOD = 50_400;
-    uint256 private constant TIMELOCK_DELAY = 2 days;
-    uint256 private constant TIMELOCK_DELAY_LONG = 7 days;
 
     struct ScenarioConfig {
         string name;
@@ -88,7 +87,7 @@ contract SetupScenarios is Script {
                 quorumPercentage: 4,
                 proposalThreshold: 1,
                 hasTimelock: true,
-                timelockDelay: TIMELOCK_DELAY,
+                timelockDelay: TimeBasedDefenseConfig.standard().timelockDelay,
                 numAddresses: 3,
                 tokenDistribution: "top3"
             });
@@ -99,7 +98,7 @@ contract SetupScenarios is Script {
                 quorumPercentage: 10,
                 proposalThreshold: 1,
                 hasTimelock: true,
-                timelockDelay: TIMELOCK_DELAY,
+                timelockDelay: TimeBasedDefenseConfig.standard().timelockDelay,
                 numAddresses: 100,
                 tokenDistribution: "distributed"
             });
@@ -110,7 +109,7 @@ contract SetupScenarios is Script {
                 quorumPercentage: 20,
                 proposalThreshold: 2,
                 hasTimelock: true,
-                timelockDelay: TIMELOCK_DELAY_LONG,
+                timelockDelay: TimeBasedDefenseConfig.largeTimelock().criticalDelay,
                 numAddresses: 50,
                 tokenDistribution: "gaussian"
             });
@@ -121,7 +120,7 @@ contract SetupScenarios is Script {
                 quorumPercentage: 50,
                 proposalThreshold: 5,
                 hasTimelock: true,
-                timelockDelay: TIMELOCK_DELAY_LONG,
+                timelockDelay: TimeBasedDefenseConfig.largeTimelock().criticalDelay,
                 numAddresses: 1000,
                 tokenDistribution: "equal"
             });
@@ -146,7 +145,8 @@ contract SetupScenarios is Script {
             address[] memory executors = new address[](1);
             executors[0] = address(0);
 
-            Timelock timelock = new Timelock(selectedScenario.timelockDelay, proposers, executors, admin);
+            GovernanceTimelock timelock =
+                new GovernanceTimelock(selectedScenario.timelockDelay, proposers, executors, admin);
 
             deployedContracts.timelock = address(timelock);
             console.log("PASS: Timelock deployed at:", address(timelock));
@@ -170,7 +170,7 @@ contract SetupScenarios is Script {
             GovernorWithDefenses govDef = new GovernorWithDefenses(
                 "Governor With Defenses",
                 ITokenVotesDefenses(address(token)),
-                Timelock(payable(deployedContracts.timelock)),
+                GovernanceTimelock(payable(deployedContracts.timelock)),
                 VOTING_DELAY,
                 VOTING_PERIOD,
                 selectedScenario.proposalThreshold,
@@ -194,7 +194,7 @@ contract SetupScenarios is Script {
         if (_stringsEqual(selectedScenario.tokenDistribution, "whale")) {
             address whale = address(0xDEADBEEF);
             uint256 whaleAmount = (TOTAL_SUPPLY * 60) / 100;
-            token.mint(whale, whaleAmount);
+            require(token.transfer(whale, whaleAmount), "transfer whale failed");
             console.log("  Whale receives:", whaleAmount / 1e18, "tokens (60%)");
         } else if (_stringsEqual(selectedScenario.tokenDistribution, "top3")) {
             address[] memory whales = new address[](3);
@@ -206,9 +206,9 @@ contract SetupScenarios is Script {
             uint256 whale2Amount = (TOTAL_SUPPLY * 27) / 100;
             uint256 whale3Amount = (TOTAL_SUPPLY * 26) / 100;
 
-            token.mint(whales[0], whale1Amount);
-            token.mint(whales[1], whale2Amount);
-            token.mint(whales[2], whale3Amount);
+            require(token.transfer(whales[0], whale1Amount), "transfer whale1 failed");
+            require(token.transfer(whales[1], whale2Amount), "transfer whale2 failed");
+            require(token.transfer(whales[2], whale3Amount), "transfer whale3 failed");
 
             console.log("  Whale 1:", whale1Amount / 1e18, "tokens (27%)");
             console.log("  Whale 2:", whale2Amount / 1e18, "tokens (27%)");
@@ -220,7 +220,7 @@ contract SetupScenarios is Script {
                 // casting to 'uint160' is safe because generated addresses use small bounded constants
                 // forge-lint: disable-next-line(unsafe-typecast)
                 address recipient = address(uint160(0x1000 + i));
-                token.mint(recipient, amountPerAddress);
+                require(token.transfer(recipient, amountPerAddress), "transfer distributed failed");
             }
 
             console.log("  100 addresses receive:", amountPerAddress / 1e18, "tokens each");
@@ -245,7 +245,7 @@ contract SetupScenarios is Script {
                     amount = (avgAmount * 5) / 10;
                 }
 
-                token.mint(recipient, amount);
+                require(token.transfer(recipient, amount), "transfer gaussian failed");
             }
 
             console.log("  50 addresses with Gaussian distribution");
@@ -259,7 +259,7 @@ contract SetupScenarios is Script {
                 // casting to 'uint160' is safe because generated addresses use small bounded constants
                 // forge-lint: disable-next-line(unsafe-typecast)
                 address recipient = address(uint160(0x3000 + i));
-                token.mint(recipient, amountPerAddress);
+                require(token.transfer(recipient, amountPerAddress), "transfer equal failed");
             }
         }
 
@@ -276,7 +276,14 @@ contract SetupScenarios is Script {
         console.log("PASS: Mock Treasury deployed at:", address(treasury));
 
         GovernanceToken token = GovernanceToken(deployedContracts.govToken);
-        uint256 treasuryFunds = TOTAL_SUPPLY / 10;
+        uint256 targetTreasuryFunds = TOTAL_SUPPLY / 10;
+        uint256 available = token.balanceOf(msg.sender);
+        uint256 treasuryFunds = available < targetTreasuryFunds ? available : targetTreasuryFunds;
+
+        if (treasuryFunds == 0) {
+            console.log("WARN: No remaining admin balance to fund treasury in this scenario");
+            return;
+        }
 
         token.approve(address(treasury), treasuryFunds);
         treasury.depositToken(address(token), treasuryFunds);

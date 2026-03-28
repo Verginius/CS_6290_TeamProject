@@ -4,9 +4,9 @@ pragma solidity ^0.8.20;
 import {QuorumManipulation} from "../src/attacks/QuorumManipulation.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorVulnerable, ITokenVotes} from "../src/governance/GovernorVulnerable.sol";
-import {Timelock} from "../src/governance/Timelock.sol";
+import {Timelock as GovernanceTimelock} from "../src/governance/Timelock.sol";
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
-import {TestHelpers} from "./{helpers}/TestHelpers.sol";
+import {TestHelpers} from "./helpers/TestHelpers.sol";
 
 /**
  * @title QuorumManipulationTest
@@ -49,7 +49,7 @@ contract QuorumManipulationTest is TestHelpers {
     QuorumManipulation public quorumAttack;
     GovernanceToken public token;
     GovernorVulnerable public governor;
-    Timelock public timelock;
+    GovernanceTimelock public timelock;
     MockTreasury public treasury;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ contract QuorumManipulationTest is TestHelpers {
         // 2. Create timelock
         address[] memory proposers = new address[](0);
         address[] memory executors = new address[](0);
-        timelock = new Timelock(1 days, proposers, executors, admin);
+        timelock = new GovernanceTimelock(1 days, proposers, executors, admin);
 
         // 3. Create vulnerable governor with zero quorum (VULN-5)
         governor = new GovernorVulnerable(

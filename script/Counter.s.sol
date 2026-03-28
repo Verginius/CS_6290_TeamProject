@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
-import {Timelock} from "../src/governance/Timelock.sol";
+import {Timelock as GovernanceTimelock} from "../src/governance/Timelock.sol";
 import {GovernorBase} from "../src/governance/GovernorBase.sol";
 
 /**
@@ -48,7 +48,7 @@ contract DeployGovernance is Script {
     // ─────────────────────────────────────────────────────────────────────────
 
     GovernanceToken public token;
-    Timelock public timelock;
+    GovernanceTimelock public timelock;
     GovernorBase public governor;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ contract DeployGovernance is Script {
         // 2. Deploy Timelock — proposers/executors are empty; set via roles below.
         address[] memory proposers = new address[](0);
         address[] memory executors = new address[](0);
-        timelock = new Timelock(MIN_DELAY, proposers, executors, deployer);
+        timelock = new GovernanceTimelock(MIN_DELAY, proposers, executors, deployer);
         console.log("Timelock deployed at:", address(timelock));
 
         // 3. Deploy Governor.

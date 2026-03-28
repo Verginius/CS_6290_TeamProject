@@ -9,7 +9,8 @@ import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorBase} from "../src/governance/GovernorBase.sol";
 import {GovernorVulnerable, ITokenVotes as ITokenVotesVulnerable} from "../src/governance/GovernorVulnerable.sol";
 import {GovernorWithDefenses, ITokenVotes as ITokenVotesDefenses} from "../src/governance/GovernorWithDefenses.sol";
-import {Timelock} from "../src/governance/Timelock.sol";
+import {Timelock as GovernanceTimelock} from "../src/governance/Timelock.sol";
+import {TimeBasedDefenseConfig} from "../src/defenses/TimeBasedDefense.sol";
 
 // Attack Contracts
 import {FlashLoanAttack} from "../src/attacks/FlashLoanAttack.sol";
@@ -64,8 +65,9 @@ contract Deploy is Script {
     uint256 private constant VOTING_PERIOD = 50400; // 1 week on Ethereum
     uint256 private constant PROPOSAL_THRESHOLD = 0; // 0 for vulnerable version
     uint256 private constant QUORUM_VOTES = 0; // 0 for vulnerable version
-    uint256 private constant TIMELOCK_DELAY = 2 days;
     uint256 private constant MOCK_TREASURY_SPENDING_LIMIT = 100_000e18; // 100k tokens
+    string private constant DEPLOYMENT_JSON_FILE = "./analysis/data/raw/deployment_addresses.json";
+    string private constant SIM_ENV_FILE = "./.env.simulation";
 
     // ─────────────────────────────────────────────────────────────────────────
     // Main Deployment Function
@@ -96,6 +98,9 @@ contract Deploy is Script {
 
         // Log deployment summary
         _logDeploymentSummary();
+
+        // Persist deployment addresses for downstream scripts.
+        _writeDeploymentArtifacts();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -111,7 +116,9 @@ contract Deploy is Script {
 
         // Deploy Timelock
         console.log("Deploying Timelock...");
-        Timelock timelock = new Timelock(TIMELOCK_DELAY, new address[](0), new address[](0), admin);
+        GovernanceTimelock timelock = new GovernanceTimelock(
+            TimeBasedDefenseConfig.standard().timelockDelay, new address[](0), new address[](0), admin
+        );
         deployedTimelock = address(timelock);
         console.log("Timelock deployed at:", deployedTimelock);
 
@@ -127,7 +134,7 @@ contract Deploy is Script {
             // casting to 'uint32' is safe because VOTING_PERIOD is a bounded constant (50400)
             // forge-lint: disable-next-line(unsafe-typecast)
             uint32(VOTING_PERIOD),
-            1e16, // 1% proposal threshold
+            1, // 1% proposal threshold
             4 // 4% quorum
         );
         deployedGovernorBase = address(governorBase);
@@ -158,7 +165,7 @@ contract Deploy is Script {
             // casting to 'uint32' is safe because VOTING_PERIOD is a bounded constant (50400)
             // forge-lint: disable-next-line(unsafe-typecast)
             uint32(VOTING_PERIOD),
-            1e16, // 1% proposal threshold
+            1, // 1% proposal threshold
             4 // 4% quorum
         );
         deployedGovernorWithDefenses = address(governorWithDefenses);
@@ -174,7 +181,10 @@ contract Deploy is Script {
 
         // Fund flash loan provider with governance tokens from the admin's existing balance
         GovernanceToken govToken = GovernanceToken(deployedGovToken);
-        govToken.transfer(deployedFlashLoanProvider, GOV_TOKEN_INITIAL_SUPPLY / 2);
+        require(
+            govToken.transfer(deployedFlashLoanProvider, GOV_TOKEN_INITIAL_SUPPLY / 2),
+            "transfer to flash loan provider failed"
+        );
         console.log("Funded flash loan provider with tokens");
 
         // Deploy Mock Token
@@ -270,6 +280,93 @@ contract Deploy is Script {
 
         console.log("\nAll contracts deployed successfully!");
         console.log("===================================================================\n");
+    }
+
+    function _writeDeploymentArtifacts() internal {
+        string memory json = string(
+            abi.encodePacked(
+                "{\n",
+                '  "governance": {\n',
+                '    "govToken": "',
+                vm.toString(deployedGovToken),
+                '",\n',
+                '    "governorBase": "',
+                vm.toString(deployedGovernorBase),
+                '",\n',
+                '    "governorVulnerable": "',
+                vm.toString(deployedGovernorVulnerable),
+                '",\n',
+                '    "governorWithDefenses": "',
+                vm.toString(deployedGovernorWithDefenses),
+                '",\n',
+                '    "timelock": "',
+                vm.toString(deployedTimelock),
+                '"\n',
+                "  },\n",
+                '  "mocks": {\n',
+                '    "flashLoanProvider": "',
+                vm.toString(deployedFlashLoanProvider),
+                '",\n',
+                '    "mockToken": "',
+                vm.toString(deployedMockToken),
+                '",\n',
+                '    "mockTreasury": "',
+                vm.toString(deployedMockTreasury),
+                '"\n',
+                "  },\n",
+                '  "attacks": {\n',
+                '    "flashLoanAttack": "',
+                vm.toString(deployedFlashLoanAttack),
+                '",\n',
+                '    "whaleManipulation": "',
+                vm.toString(deployedWhaleManipulation),
+                '",\n',
+                '    "proposalSpam": "',
+                vm.toString(deployedProposalSpam),
+                '",\n',
+                '    "quorumManipulation": "',
+                vm.toString(deployedQuorumManipulation),
+                '",\n',
+                '    "timelockExploit": "',
+                vm.toString(deployedTimelockExploit),
+                '"\n',
+                "  }\n",
+                "}\n"
+            )
+        );
+
+        // forge-lint: disable-next-line(unsafe-cheatcode)
+        vm.writeFile(DEPLOYMENT_JSON_FILE, json);
+
+        string memory envFile = string(
+            abi.encodePacked(
+                "# Auto-generated by script/Deploy.s.sol\n",
+                "GOV_TOKEN_ADDRESS=",
+                vm.toString(deployedGovToken),
+                "\n",
+                "GOVERNOR_VULNERABLE_ADDRESS=",
+                vm.toString(deployedGovernorVulnerable),
+                "\n",
+                "MOCK_TREASURY_ADDRESS=",
+                vm.toString(deployedMockTreasury),
+                "\n",
+                "FLASH_LOAN_PROVIDER_ADDRESS=",
+                vm.toString(deployedFlashLoanProvider),
+                "\n",
+                "TIMELOCK_ADDRESS=",
+                vm.toString(deployedTimelock),
+                "\n",
+                "TIMELOCK=",
+                vm.toString(deployedTimelock),
+                "\n"
+            )
+        );
+
+        // forge-lint: disable-next-line(unsafe-cheatcode)
+        vm.writeFile(SIM_ENV_FILE, envFile);
+
+        console.log("Deployment address manifest written to:", DEPLOYMENT_JSON_FILE);
+        console.log("Simulation env file written to:", SIM_ENV_FILE);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

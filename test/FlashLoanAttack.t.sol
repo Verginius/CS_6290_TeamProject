@@ -6,9 +6,9 @@ import {VmSafe} from "forge-std/Vm.sol";
 import {MockFlashLoanProvider} from "../src/mocks/MockFlashLoanProvider.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorVulnerable, ITokenVotes} from "../src/governance/GovernorVulnerable.sol";
-import {Timelock} from "../src/governance/Timelock.sol";
+import {Timelock as GovernanceTimelock} from "../src/governance/Timelock.sol";
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
-import {TestHelpers} from "./{helpers}/TestHelpers.sol";
+import {TestHelpers} from "./helpers/TestHelpers.sol";
 
 /**
  * @title FlashLoanAttackTest
@@ -61,7 +61,7 @@ contract FlashLoanAttackTest is TestHelpers {
     MockFlashLoanProvider public flashLoanProvider;
     GovernanceToken public token;
     GovernorVulnerable public governor;
-    Timelock public timelock;
+    GovernanceTimelock public timelock;
     MockTreasury public treasury;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ contract FlashLoanAttackTest is TestHelpers {
         // 3. Create timelock and governor (vulnerable version)
         address[] memory proposers = new address[](0);
         address[] memory executors = new address[](0);
-        timelock = new Timelock(1 days, proposers, executors, admin);
+        timelock = new GovernanceTimelock(1 days, proposers, executors, admin);
 
         governor = new GovernorVulnerable(
             "Vulnerable Governor",

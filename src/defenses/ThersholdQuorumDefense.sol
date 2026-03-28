@@ -18,7 +18,7 @@ pragma solidity ^0.8.20;
  * Reference: docs/specs/Defense_Mechanisms.md - Defense Layer 3
  */
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract ThersholdQuorumDefense is Ownable {
     // Enums

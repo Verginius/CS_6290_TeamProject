@@ -4,9 +4,9 @@ pragma solidity ^0.8.20;
 import {WhaleManipulation} from "../src/attacks/WhaleManipulation.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorVulnerable, ITokenVotes} from "../src/governance/GovernorVulnerable.sol";
-import {Timelock} from "../src/governance/Timelock.sol";
+import {Timelock as GovernanceTimelock} from "../src/governance/Timelock.sol";
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
-import {TestHelpers} from "./{helpers}/TestHelpers.sol";
+import {TestHelpers} from "./helpers/TestHelpers.sol";
 
 /**
  * @title WhaleManipulationTest
@@ -60,7 +60,7 @@ contract WhaleManipulationTest is TestHelpers {
     WhaleManipulation public whaleAttack;
     GovernanceToken public token;
     GovernorVulnerable public governor;
-    Timelock public timelock;
+    GovernanceTimelock public timelock;
     MockTreasury public treasury;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ contract WhaleManipulationTest is TestHelpers {
         // 2. Create timelock
         address[] memory proposers = new address[](0);
         address[] memory executors = new address[](0);
-        timelock = new Timelock(1 days, proposers, executors, admin);
+        timelock = new GovernanceTimelock(1 days, proposers, executors, admin);
 
         // 3. Create vulnerable governor
         governor = new GovernorVulnerable("Vulnerable Governor", ITokenVotes(address(token)), 1, 100, 100, 400);
