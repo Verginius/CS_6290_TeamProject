@@ -229,10 +229,9 @@ contract ProposalSpamTest is Test {
             1000 // quorumBps
         );
 
-        // Spammer still has 0 tokens
-        // Should revert due to threshold
-        vm.expectRevert();
-        _proposeNoOp(spammer, "Spam Proposal: Should fail");
+        // GovernorVulnerable intentionally does not enforce proposalThreshold.
+        uint256 proposalId = _proposeNoOp(spammer, "Spam Proposal: Should fail");
+        assertGt(proposalId, 0, "VULN-4: spammer can still propose with zero votes");
     }
 
     /// @notice Legitimate proposer with tokens still succeeds

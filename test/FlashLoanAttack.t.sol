@@ -220,7 +220,9 @@ contract FlashLoanAttackTest is Test {
         uint256 providerFinalBalance = token.balanceOf(address(flashLoanProvider));
 
         // Attack fails in callback and the flash loan reverts atomically; provider balance is unchanged.
-        assertEq(providerFinalBalance, providerInitialBalance, "Provider balance should remain unchanged on failed attack");
+        assertEq(
+            providerFinalBalance, providerInitialBalance, "Provider balance should remain unchanged on failed attack"
+        );
     }
 
     /// @notice Attack uses getPastVotes() voting weight as defense
@@ -303,6 +305,8 @@ contract FlashLoanAttackTest is Test {
         vm.prank(attacker);
         attack.executeAttack(FLASH_LOAN_AMOUNT, TREASURY_DRAIN_AMOUNT);
 
+        uint256 attackerBalanceBeforeRecover = token.balanceOf(attacker);
+
         // Recover the tokens
         vm.prank(attacker);
         attack.recoverToken(address(token), attacker);
@@ -310,7 +314,11 @@ contract FlashLoanAttackTest is Test {
         uint256 balance = token.balanceOf(address(attack));
         assertEq(balance, 0, "All tokens should be recovered");
 
-        assertEq(token.balanceOf(attacker), 1000e18, "Attacker should receive recovered tokens");
+        assertEq(
+            token.balanceOf(attacker),
+            attackerBalanceBeforeRecover + 1000e18,
+            "Attacker should receive recovered tokens"
+        );
     }
 
     /// @notice Only attacker can recover tokens

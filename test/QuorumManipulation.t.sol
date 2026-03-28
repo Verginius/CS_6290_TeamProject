@@ -195,7 +195,7 @@ contract QuorumManipulationTest is Test {
         vm.roll(block.number + 2);
 
         // Single vote should satisfy zero quorum
-        vm.prank(attacker);
+        vm.prank(legitimateVoter1);
         governor.castVote(proposalId, 1); // For
 
         vm.roll(block.number + 101);

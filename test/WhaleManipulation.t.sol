@@ -358,7 +358,8 @@ contract WhaleManipulationTest is Test {
         vm.prank(whale);
         uint256 proposalId2 = governor.propose(targets, values, calldatas, description2);
 
-        vm.roll(block.number + 102);
+        (uint256 voteStart2,) = governor.proposalSnapshot(proposalId2);
+        vm.roll(voteStart2 + 1);
 
         vm.prank(whale);
         governor.castVote(proposalId2, 1);
