@@ -9,7 +9,8 @@ import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorBase} from "../src/governance/GovernorBase.sol";
 import {GovernorVulnerable, ITokenVotes as ITokenVotesVulnerable} from "../src/governance/GovernorVulnerable.sol";
 import {GovernorWithDefenses, ITokenVotes as ITokenVotesDefenses} from "../src/governance/GovernorWithDefenses.sol";
-import {Timelock} from "../src/governance/Timelock.sol";
+import {Timelock as GovernanceTimelock} from "../src/governance/Timelock.sol";
+import {TimeBasedDefenseConfig} from "../src/defenses/TimeBasedDefense.sol";
 
 // Attack Contracts
 import {FlashLoanAttack} from "../src/attacks/FlashLoanAttack.sol";
@@ -64,7 +65,6 @@ contract Deploy is Script {
     uint256 private constant VOTING_PERIOD = 50400; // 1 week on Ethereum
     uint256 private constant PROPOSAL_THRESHOLD = 0; // 0 for vulnerable version
     uint256 private constant QUORUM_VOTES = 0; // 0 for vulnerable version
-    uint256 private constant TIMELOCK_DELAY = 2 days;
     uint256 private constant MOCK_TREASURY_SPENDING_LIMIT = 100_000e18; // 100k tokens
     string private constant DEPLOYMENT_JSON_FILE = "./analysis/data/raw/deployment_addresses.json";
     string private constant SIM_ENV_FILE = "./.env.simulation";
@@ -116,7 +116,9 @@ contract Deploy is Script {
 
         // Deploy Timelock
         console.log("Deploying Timelock...");
-        Timelock timelock = new Timelock(TIMELOCK_DELAY, new address[](0), new address[](0), admin);
+        GovernanceTimelock timelock = new GovernanceTimelock(
+            TimeBasedDefenseConfig.standard().timelockDelay, new address[](0), new address[](0), admin
+        );
         deployedTimelock = address(timelock);
         console.log("Timelock deployed at:", deployedTimelock);
 

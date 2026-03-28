@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
-import {Timelock} from "../src/governance/Timelock.sol";
+import {Timelock as GovernanceTimelock} from "../src/governance/Timelock.sol";
 import {GovernorWithDefenses, ITokenVotes} from "../src/governance/GovernorWithDefenses.sol";
 import {TestHelpers} from "./helpers/TestHelpers.sol";
 
@@ -63,7 +63,7 @@ contract GovernorWithDefensesTest is TestHelpers {
     // ─────────────────────────────────────────────────────────────────────────
 
     GovernanceToken public token;
-    Timelock public timelock;
+    GovernanceTimelock public timelock;
     GovernorWithDefenses public governor;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ contract GovernorWithDefensesTest is TestHelpers {
         // 2. Timelock — no proposers/executors yet; admin holds DEFAULT_ADMIN_ROLE.
         address[] memory proposers = new address[](0);
         address[] memory executors = new address[](0);
-        timelock = new Timelock(MIN_DELAY, proposers, executors, admin);
+        timelock = new GovernanceTimelock(MIN_DELAY, proposers, executors, admin);
 
         // 3. GovernorWithDefenses.
         governor = new GovernorWithDefenses(

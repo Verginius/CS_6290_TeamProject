@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
-import {Timelock} from "../src/governance/Timelock.sol";
+import {Timelock as GovernanceTimelock} from "../src/governance/Timelock.sol";
 import {GovernorBase} from "../src/governance/GovernorBase.sol";
 
 /**
@@ -43,7 +43,7 @@ contract BaseTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
 
     GovernanceToken public token;
-    Timelock public timelock;
+    GovernanceTimelock public timelock;
     GovernorBase public governor;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ contract BaseTest is Test {
         // 2. Deploy Timelock.
         address[] memory proposers = new address[](0);
         address[] memory executors = new address[](0);
-        timelock = new Timelock(MIN_DELAY, proposers, executors, admin);
+        timelock = new GovernanceTimelock(MIN_DELAY, proposers, executors, admin);
 
         // 3. Deploy Governor — needs to be a proposer in the Timelock.
         governor = new GovernorBase(

@@ -8,7 +8,8 @@ import {console} from "forge-std/console.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorVulnerable, ITokenVotes as ITokenVotesVulnerable} from "../src/governance/GovernorVulnerable.sol";
 import {GovernorWithDefenses, ITokenVotes as ITokenVotesDefenses} from "../src/governance/GovernorWithDefenses.sol";
-import {Timelock} from "../src/governance/Timelock.sol";
+import {Timelock as GovernanceTimelock} from "../src/governance/Timelock.sol";
+import {TimeBasedDefenseConfig} from "../src/defenses/TimeBasedDefense.sol";
 
 // Mock Contracts
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
@@ -21,8 +22,6 @@ contract SetupScenarios is Script {
     uint256 private constant TOTAL_SUPPLY = 1_000_000_000e18;
     uint256 private constant VOTING_DELAY = 1;
     uint256 private constant VOTING_PERIOD = 50_400;
-    uint256 private constant TIMELOCK_DELAY = 2 days;
-    uint256 private constant TIMELOCK_DELAY_LONG = 7 days;
 
     struct ScenarioConfig {
         string name;
@@ -88,7 +87,7 @@ contract SetupScenarios is Script {
                 quorumPercentage: 4,
                 proposalThreshold: 1,
                 hasTimelock: true,
-                timelockDelay: TIMELOCK_DELAY,
+                timelockDelay: TimeBasedDefenseConfig.standard().timelockDelay,
                 numAddresses: 3,
                 tokenDistribution: "top3"
             });
@@ -99,7 +98,7 @@ contract SetupScenarios is Script {
                 quorumPercentage: 10,
                 proposalThreshold: 1,
                 hasTimelock: true,
-                timelockDelay: TIMELOCK_DELAY,
+                timelockDelay: TimeBasedDefenseConfig.standard().timelockDelay,
                 numAddresses: 100,
                 tokenDistribution: "distributed"
             });
@@ -110,7 +109,7 @@ contract SetupScenarios is Script {
                 quorumPercentage: 20,
                 proposalThreshold: 2,
                 hasTimelock: true,
-                timelockDelay: TIMELOCK_DELAY_LONG,
+                timelockDelay: TimeBasedDefenseConfig.largeTimelock().criticalDelay,
                 numAddresses: 50,
                 tokenDistribution: "gaussian"
             });
@@ -121,7 +120,7 @@ contract SetupScenarios is Script {
                 quorumPercentage: 50,
                 proposalThreshold: 5,
                 hasTimelock: true,
-                timelockDelay: TIMELOCK_DELAY_LONG,
+                timelockDelay: TimeBasedDefenseConfig.largeTimelock().criticalDelay,
                 numAddresses: 1000,
                 tokenDistribution: "equal"
             });
@@ -146,7 +145,8 @@ contract SetupScenarios is Script {
             address[] memory executors = new address[](1);
             executors[0] = address(0);
 
-            Timelock timelock = new Timelock(selectedScenario.timelockDelay, proposers, executors, admin);
+            GovernanceTimelock timelock =
+                new GovernanceTimelock(selectedScenario.timelockDelay, proposers, executors, admin);
 
             deployedContracts.timelock = address(timelock);
             console.log("PASS: Timelock deployed at:", address(timelock));
@@ -170,7 +170,7 @@ contract SetupScenarios is Script {
             GovernorWithDefenses govDef = new GovernorWithDefenses(
                 "Governor With Defenses",
                 ITokenVotesDefenses(address(token)),
-                Timelock(payable(deployedContracts.timelock)),
+                GovernanceTimelock(payable(deployedContracts.timelock)),
                 VOTING_DELAY,
                 VOTING_PERIOD,
                 selectedScenario.proposalThreshold,
