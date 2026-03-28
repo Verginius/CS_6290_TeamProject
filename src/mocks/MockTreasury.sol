@@ -338,6 +338,10 @@ contract MockTreasury is Ownable, ReentrancyGuard {
         uint256 balance = IERC20(token).balanceOf(address(this));
         require(balance >= amount, "Insufficient balance");
 
+        // Sync tracked balance with actual balance to avoid underflow if bookkeeping drifted
+        if (tokenBalance[token] < balance) {
+            tokenBalance[token] = balance;
+        }
         IERC20(token).safeTransfer(to, amount);
         tokenBalance[token] -= amount;
 
