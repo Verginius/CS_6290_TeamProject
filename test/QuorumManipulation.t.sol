@@ -450,11 +450,6 @@ contract QuorumManipulationTest is Test {
             // Minimal voting on each
             vm.prank(attacker);
             governor.castVote(proposalId, 1);
-
-            vm.roll(block.number - 1); // Reset to create next proposal
-            if (i < 2) {
-                vm.roll(block.number + 1);
-            }
         }
     }
 

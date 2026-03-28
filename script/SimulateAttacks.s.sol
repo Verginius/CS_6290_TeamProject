@@ -110,7 +110,7 @@ contract SimulateAttacks is Script {
         GovernorVulnerable gov = GovernorVulnerable(payable(governor));
         address whale = address(0xDEADBEEF);
 
-        GovernanceToken(govToken).mint(whale, 600_000_000e18);
+        GovernanceToken(govToken).transfer(whale, 600_000_000e18);
         vm.prank(whale);
         GovernanceToken(govToken).delegate(whale);
 
@@ -191,7 +191,8 @@ contract SimulateAttacks is Script {
 
     function _simulateTimelockExploit(address governor, address mockTreasury) internal {
         console.log("[5] Timelock Exploit");
-        TimelockExploit attack = new TimelockExploit(governor, address(0), mockTreasury);
+        address timelock = vm.envAddress("TIMELOCK");
+        TimelockExploit attack = new TimelockExploit(governor, timelock, mockTreasury);
         console.log("Identifying timelock vulnerabilities...");
         uint256 delay = attack.identifyTimelockVulnerabilities();
         console.log("Timelock delay identified: ", delay, " seconds");

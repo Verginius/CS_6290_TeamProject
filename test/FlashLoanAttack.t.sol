@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {FlashLoanAttack} from "../src/attacks/FlashLoanAttack.sol";
 import {MockFlashLoanProvider} from "../src/mocks/MockFlashLoanProvider.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
@@ -381,12 +382,24 @@ contract FlashLoanAttackTest is Test {
             "transfer to flashLoanProvider failed"
         );
 
-        // Execute attack and verify it doesn't revert
-        vm.prank(attacker);
-        bool success = attack.executeAttack(FLASH_LOAN_AMOUNT, TREASURY_DRAIN_AMOUNT);
+        // Record logs, then execute attack and verify events are emitted
+        vm.recordLogs();
 
-        // Execution should succeed (events emitted within flashLoanProvider and attack)
-        assertTrue(success || !success, "Attack execution completes");
+        vm.prank(attacker);
+        attack.executeAttack(FLASH_LOAN_AMOUNT, TREASURY_DRAIN_AMOUNT);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertGt(logs.length, 0, "Expected at least one event to be emitted during attack");
+
+        bool foundRelevantEmitter = false;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].emitter == address(flashLoanProvider) || logs[i].emitter == address(attack)) {
+                foundRelevantEmitter = true;
+                break;
+            }
+        }
+
+        assertTrue(foundRelevantEmitter, "Expected events emitted by flashLoanProvider or attack contract");
     }
 
     // ─────────────────────────────────────────────────────────────────────────

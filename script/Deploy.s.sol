@@ -172,9 +172,9 @@ contract Deploy is Script {
         deployedFlashLoanProvider = address(flashLoanProvider);
         console.log("MockFlashLoanProvider deployed at:", deployedFlashLoanProvider);
 
-        // Fund flash loan provider with governance tokens
+        // Fund flash loan provider with governance tokens from the admin's existing balance
         GovernanceToken govToken = GovernanceToken(deployedGovToken);
-        govToken.mint(deployedFlashLoanProvider, GOV_TOKEN_INITIAL_SUPPLY / 2);
+        govToken.transfer(deployedFlashLoanProvider, GOV_TOKEN_INITIAL_SUPPLY / 2);
         console.log("Funded flash loan provider with tokens");
 
         // Deploy Mock Token
@@ -197,7 +197,7 @@ contract Deploy is Script {
         console.log("MockTreasury deployed at:", deployedMockTreasury);
 
         // Fund the treasury
-        mockToken.mint(address(this), 10_000_000e18); // 10 million - mint to deployer
+        mockToken.mint(admin, 10_000_000e18); // 10 million - mint to admin (broadcaster)
         MockTreasury treasury = MockTreasury(payable(deployedMockTreasury));
         mockToken.approve(deployedMockTreasury, 10_000_000e18);
         treasury.depositToken(deployedMockToken, 10_000_000e18);

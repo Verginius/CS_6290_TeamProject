@@ -166,18 +166,23 @@ contract SetupScenarios is Script {
         deployedContracts.governorVulnerable = address(govVuln);
         console.log("PASS: Vulnerable Governor deployed at:", address(govVuln));
 
-        GovernorWithDefenses govDef = new GovernorWithDefenses(
-            "Governor With Defenses",
-            ITokenVotesDefenses(address(token)),
-            Timelock(payable(deployedContracts.timelock)),
-            VOTING_DELAY,
-            VOTING_PERIOD,
-            selectedScenario.proposalThreshold,
-            selectedScenario.quorumPercentage
-        );
+        if (selectedScenario.hasTimelock) {
+            GovernorWithDefenses govDef = new GovernorWithDefenses(
+                "Governor With Defenses",
+                ITokenVotesDefenses(address(token)),
+                Timelock(payable(deployedContracts.timelock)),
+                VOTING_DELAY,
+                VOTING_PERIOD,
+                selectedScenario.proposalThreshold,
+                selectedScenario.quorumPercentage
+            );
 
-        deployedContracts.governorDefended = address(govDef);
-        console.log("PASS: Defended Governor deployed at:", address(govDef));
+            deployedContracts.governorDefended = address(govDef);
+            console.log("PASS: Defended Governor deployed at:", address(govDef));
+        } else {
+            deployedContracts.governorDefended = address(0);
+            console.log("INFO: Defended Governor not deployed (no timelock for this scenario)");
+        }
     }
 
     function _setupTokenDistribution() internal {

