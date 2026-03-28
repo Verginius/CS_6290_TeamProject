@@ -604,18 +604,18 @@ contract GovernorWithDefenses {
         require(p.voteStart != 0, "unknown proposal");
 
         ProposalVotes storage v = _proposalVotes[proposalId];
-        return (
-            p.proposer,
-            p.eta,
-            p.targets,
-            p.values,
-            p.calldatas,
-            p.voteStart,
-            p.voteEnd,
-            v.forVotes,
-            v.againstVotes,
-            state(proposalId)
-        );
+        ProposalState ps = state(proposalId);
+
+        proposer = p.proposer;
+        eta = p.eta;
+        targets = p.targets;
+        values = p.values;
+        calldatas = p.calldatas;
+        startBlock = p.voteStart;
+        endBlock = p.voteEnd;
+        forVotes = v.forVotes;
+        againstVotes = v.againstVotes;
+        proposalState = ps;
     }
 
     /**
