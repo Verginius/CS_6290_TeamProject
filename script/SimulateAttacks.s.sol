@@ -107,7 +107,7 @@ contract SimulateAttacks is Script {
         console.log("[2] Whale Manipulation");
         WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
         address whale = address(0xDEADBEEF);
-        GovernanceToken(govToken).mint(whale, 600_000_000e18);
+        GovernanceToken(govToken).transfer(whale, 600_000_000e18);
         console.log("Created whale with 60% voting power");
         bool success = attack.executeWhaleAttack(whale, WHALE_ATTACK_DRAIN);
         console.log("Attack execution result: ", success);
