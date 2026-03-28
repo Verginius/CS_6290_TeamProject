@@ -6,7 +6,7 @@ import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorVulnerable, ITokenVotes} from "../src/governance/GovernorVulnerable.sol";
 import {Timelock} from "../src/governance/Timelock.sol";
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
-import {TestHelpers} from "./{helpers}/TestHelpers.sol";
+import {TestHelpers} from "./helpers/TestHelpers.sol";
 
 /**
  * @title WhaleManipulationTest

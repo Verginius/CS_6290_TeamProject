@@ -3,8 +3,8 @@ pragma solidity ^0.8.20;
 
 import {GovernorVulnerable, ITokenVotes} from "../src/governance/GovernorVulnerable.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
-import {TestHelpers} from "./{helpers}/TestHelpers.sol";
-import {AttackScenarios} from "./{helpers}/AttackScenarios.sol";
+import {TestHelpers} from "./helpers/TestHelpers.sol";
+import {AttackScenarios} from "./helpers/AttackScenarios.sol";
 
 /**
  * @title GovernorVulnerableTest

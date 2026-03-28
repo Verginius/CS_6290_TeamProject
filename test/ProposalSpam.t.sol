@@ -5,8 +5,8 @@ import {ProposalSpam} from "../src/attacks/ProposalSpam.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorVulnerable, ITokenVotes} from "../src/governance/GovernorVulnerable.sol";
 import {Timelock} from "../src/governance/Timelock.sol";
-import {TestHelpers} from "./{helpers}/TestHelpers.sol";
-import {AttackScenarios} from "./{helpers}/AttackScenarios.sol";
+import {TestHelpers} from "./helpers/TestHelpers.sol";
+import {AttackScenarios} from "./helpers/AttackScenarios.sol";
 
 /**
  * @title ProposalSpamTest

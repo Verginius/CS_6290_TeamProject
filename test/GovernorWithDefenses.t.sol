@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {Timelock} from "../src/governance/Timelock.sol";
 import {GovernorWithDefenses, ITokenVotes} from "../src/governance/GovernorWithDefenses.sol";
-import {TestHelpers} from "./{helpers}/TestHelpers.sol";
+import {TestHelpers} from "./helpers/TestHelpers.sol";
 
 /**
  * @title GovernorWithDefensesTest
