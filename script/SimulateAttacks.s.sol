@@ -171,7 +171,8 @@ contract SimulateAttacks is Script {
 
     function _simulateTimelockExploit(address governor, address mockTreasury) internal {
         console.log("[5] Timelock Exploit");
-        TimelockExploit attack = new TimelockExploit(governor, address(0), mockTreasury);
+        address timelock = vm.envAddress("TIMELOCK");
+        TimelockExploit attack = new TimelockExploit(governor, timelock, mockTreasury);
         console.log("Identifying timelock vulnerabilities...");
         uint256 delay = attack.identifyTimelockVulnerabilities();
         console.log("Timelock delay identified: ", delay, " seconds");
