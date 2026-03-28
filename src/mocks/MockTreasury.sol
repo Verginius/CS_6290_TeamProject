@@ -244,7 +244,7 @@ contract MockTreasury is Ownable, ReentrancyGuard {
         require(amount > 0, "Amount must be > 0");
         require(tokenBalance[token] >= amount, "Insufficient balance");
 
-        Transaction memory tx = Transaction({
+        Transaction memory txn = Transaction({
             target: address(this),
             token: token,
             amount: amount,
@@ -256,7 +256,7 @@ contract MockTreasury is Ownable, ReentrancyGuard {
             initiator: msg.sender
         });
 
-        transactions.push(tx);
+        transactions.push(txn);
 
         emit TransactionCreated(transactions.length - 1, msg.sender, token, amount);
 
@@ -270,20 +270,20 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     function executeWithdrawal(uint256 txId) external nonReentrant onlySigner returns (bool) {
         require(txId < transactions.length, "Invalid transaction ID");
 
-        Transaction storage tx = transactions[txId];
+        Transaction storage txn = transactions[txId];
 
-        require(tx.status == TransactionStatus.Pending, "Transaction not pending");
-        require(tokenBalance[tx.token] >= tx.amount, "Insufficient balance");
+        require(txn.status == TransactionStatus.Pending, "Transaction not pending");
+        require(tokenBalance[txn.token] >= txn.amount, "Insufficient balance");
 
         // Execute the withdrawal
-        tx.status = TransactionStatus.Executed;
-        tx.executedAt = block.timestamp;
+        txn.status = TransactionStatus.Executed;
+        txn.executedAt = block.timestamp;
 
-        tokenBalance[tx.token] -= tx.amount;
-        IERC20(tx.token).safeTransfer(tx.recipient, tx.amount);
+        tokenBalance[txn.token] -= txn.amount;
+        IERC20(txn.token).safeTransfer(txn.recipient, txn.amount);
 
         emit TransactionExecuted(txId, msg.sender);
-        emit TokenWithdrawn(tx.token, tx.recipient, tx.amount);
+        emit TokenWithdrawn(txn.token, txn.recipient, txn.amount);
 
         return true;
     }
@@ -292,7 +292,7 @@ contract MockTreasury is Ownable, ReentrancyGuard {
      * @notice Attempt to withdraw funds (simulates attack)
      * Tracks where attackers attempt to withdraw from
      */
-    function attemptWithdrawal(address token, uint256 amount, address to) external returns (bool) {
+    function attemptWithdrawal(address token, uint256 amount, address) external returns (bool) {
         emit WithdrawalAttempted(msg.sender, token, amount);
 
         failedWithdrawalAttempts[msg.sender]++;
@@ -460,8 +460,8 @@ contract MockTreasury is Ownable, ReentrancyGuard {
         returns (address token, uint256 amount, address recipient, TransactionStatus status, string memory description)
     {
         require(txId < transactions.length, "Invalid transaction ID");
-        Transaction storage tx = transactions[txId];
-        return (tx.token, tx.amount, tx.recipient, tx.status, tx.description);
+        Transaction storage txn = transactions[txId];
+        return (txn.token, txn.amount, txn.recipient, txn.status, txn.description);
     }
 
     /**

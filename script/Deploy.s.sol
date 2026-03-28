@@ -89,7 +89,7 @@ contract Deploy is Script {
 
         // Step 3: Deploy Attack Contracts
         console.log("\n=== Deploying Attack Contracts ===");
-        _deployAttackContracts(admin);
+        _deployAttackContracts();
 
         // Stop recording transactions
         vm.stopBroadcast();
@@ -196,7 +196,7 @@ contract Deploy is Script {
         console.log("Funded treasury with mock tokens");
     }
 
-    function _deployAttackContracts(address admin) internal {
+    function _deployAttackContracts() internal {
         // Deploy Flash Loan Attack
         console.log("Deploying FlashLoanAttack...");
         FlashLoanAttack flashLoanAttack = new FlashLoanAttack(

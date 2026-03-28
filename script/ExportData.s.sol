@@ -42,7 +42,7 @@ contract ExportData is Script {
     uint256 private constant TIMELOCK_COST = 300_000;
 
     // Main Export Function
-    function run() external {
+    function run() external pure {
         console.log("[EXPORTING ATTACK DATA TO JSON]");
 
         // Generate attack data
@@ -73,7 +73,7 @@ contract ExportData is Script {
     }
 
     // Data Generation Functions
-    function _generateAttackData() internal view returns (AttackData[5] memory) {
+    function _generateAttackData() internal pure returns (AttackData[5] memory) {
         AttackData[5] memory attacks;
 
         // 1. Flash Loan Attack
@@ -178,7 +178,7 @@ contract ExportData is Script {
     // JSON Building
     function _buildJSON(AttackData[5] memory attacks, SummaryData memory summary)
         internal
-        view
+        pure
         returns (string memory)
     {
         string memory json = "{\n";

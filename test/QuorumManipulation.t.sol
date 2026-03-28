@@ -280,9 +280,6 @@ contract QuorumManipulationTest is Test {
     /// @notice Proposals pass during low participation periods
     function testLowParticipationPeriod() public {
         // Simulate low participation: only one person votes
-        uint256 totalSupply = token.totalSupply();
-        uint256 highQuorum = totalSupply / 2; // 50% normally
-
         // But with zero quorum (VULN-5), even 1 vote passes
 
         address[] memory targets = new address[](1);
@@ -312,7 +309,7 @@ contract QuorumManipulationTest is Test {
     }
 
     /// @notice Participation rate affects quorum requirements
-    function testParticipationRateTracking() public {
+    function testParticipationRateTracking() public pure {
         uint256 participation1 = 100; // 1%
         uint256 participation2 = 5000; // 50%
 
@@ -366,7 +363,7 @@ contract QuorumManipulationTest is Test {
     }
 
     /// @notice Supermajority requirements increase attack cost
-    function testSupermajorityDefense() public {
+    function testSupermajorityDefense() public view {
         // Even with low quorum, requiring >66% of votes to pass raises costs
         // Would need to modify GovernorVulnerable to test this
 
@@ -389,7 +386,7 @@ contract QuorumManipulationTest is Test {
     }
 
     /// @notice Fixed vs Dynamic quorum comparison
-    function testFixedVsDynamicQuorum() public {
+    function testFixedVsDynamicQuorum() public view {
         uint256 fixedQuorum = (token.totalSupply() * 400) / 10_000; // 4%
 
         // Fixed quorum: stays at 4% always
@@ -409,7 +406,7 @@ contract QuorumManipulationTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
 
     /// @notice Different times may have different participation
-    function testTimingAttackLogic() public {
+    function testTimingAttackLogic() public pure {
         // Concept: attack during:
         // - 2 AM UTC (fewer voters)
         // - Weekends
@@ -465,8 +462,6 @@ contract QuorumManipulationTest is Test {
     function testParticipationMeasurement() public view {
         uint256 potentialVoters = token.totalSupply() / 100; // Rough estimate
         uint256 actualVoters = token.getVotes(legitimateVoter1) + token.getVotes(legitimateVoter2);
-
-        uint256 participationRate = (actualVoters * 100) / potentialVoters;
 
         // This is a simplified participation calculation
         assertGe(potentialVoters, actualVoters);

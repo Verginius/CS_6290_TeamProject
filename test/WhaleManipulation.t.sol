@@ -351,7 +351,7 @@ contract WhaleManipulationTest is Test {
         vm.prank(minority3);
         governor.castVote(proposalId1, 0);
 
-        (uint256 against1, uint256 for1,) = governor.proposalVotes(proposalId1);
+        (, uint256 for1,) = governor.proposalVotes(proposalId1);
 
         // Scenario 2: Low participation (only whale votes)
         string memory description2 = "Low participation test";
@@ -363,7 +363,7 @@ contract WhaleManipulationTest is Test {
         vm.prank(whale);
         governor.castVote(proposalId2, 1);
 
-        (uint256 against2, uint256 for2,) = governor.proposalVotes(proposalId2);
+        (, uint256 for2,) = governor.proposalVotes(proposalId2);
 
         // With low participation, whale's % of voting weight is higher
         // 51 / 100 = 51% (high participation)
@@ -426,7 +426,7 @@ contract WhaleManipulationTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
 
     /// @notice Quadratic voting reduces whale power
-    function testQuadraticVotingDefense() public view {
+    function testQuadraticVotingDefense() public pure {
         // Quadratic voting: voting power = sqrt(tokens)
         // Whale with 51% would get sqrt(51) ≈ 7.14
         // Minorities with 12.25% each would get sqrt(12.25) ≈ 3.5
@@ -457,7 +457,7 @@ contract WhaleManipulationTest is Test {
     }
 
     /// @notice Supermajority requirement increases costs
-    function testSupermajorityDefense() public {
+    function testSupermajorityDefense() public view {
         // Standard: >50% wins
         // Supermajority 66%: need 66% to win
 
@@ -473,7 +473,7 @@ contract WhaleManipulationTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
 
     /// @notice Multiple whales can coordinate and dominate
-    function testMultipleWhalesCoordination() public {
+    function testMultipleWhalesCoordination() public pure {
         // Create a scenario with 2 whales instead of 1
         // Each has 30% voting power, together 60%
 
@@ -496,7 +496,7 @@ contract WhaleManipulationTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
 
     /// @notice Whale with exactly 50% cannot pass proposals
-    function testWhaleWith50Percent() public {
+    function testWhaleWith50Percent() public view {
         // With exactly 50%, whale's votes only tie with against
         // Typically, ties mean "not passed"
 
@@ -528,7 +528,7 @@ contract WhaleManipulationTest is Test {
         // Whale's full voting power is cast
         assertEq(castVoteWeight, WHALE_TOKENS);
 
-        (uint256 against, uint256 forVotes,) = governor.proposalVotes(proposalId);
+        (, uint256 forVotes,) = governor.proposalVotes(proposalId);
         assertEq(forVotes, WHALE_TOKENS);
     }
 
