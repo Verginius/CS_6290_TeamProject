@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test} from "forge-std/Test.sol";
 import {QuorumManipulation} from "../src/attacks/QuorumManipulation.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorVulnerable, ITokenVotes} from "../src/governance/GovernorVulnerable.sol";
 import {Timelock} from "../src/governance/Timelock.sol";
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
+import {TestHelpers} from "./{helpers}/TestHelpers.sol";
 
 /**
  * @title QuorumManipulationTest
@@ -41,7 +41,7 @@ import {MockTreasury} from "../src/mocks/MockTreasury.sol";
  * ============================================================
  */
 
-contract QuorumManipulationTest is Test {
+contract QuorumManipulationTest is TestHelpers {
     // ─────────────────────────────────────────────────────────────────────────
     // Contracts
     // ─────────────────────────────────────────────────────────────────────────
@@ -108,10 +108,10 @@ contract QuorumManipulationTest is Test {
         vm.stopPrank();
 
         // 6. Self-delegate legitimate voters
-        vm.prank(legitimateVoter1);
-        token.delegate(legitimateVoter1);
-        vm.prank(legitimateVoter2);
-        token.delegate(legitimateVoter2);
+        address[] memory initialDelegates = new address[](2);
+        initialDelegates[0] = legitimateVoter1;
+        initialDelegates[1] = legitimateVoter2;
+        _batchDelegateSelf(token, initialDelegates);
 
         vm.roll(block.number + 1);
 
@@ -138,35 +138,24 @@ contract QuorumManipulationTest is Test {
     /// @notice Proposal passes with zero quorum (VULN-5)
     function testZeroQuorumBypass() public {
         // With VULN-5, quorum = 0, so any proposal with 0 votes technically satisfies it
-
-        address[] memory targets = new address[](1);
-        targets[0] = address(treasury);
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", address(this), 1000e18);
-
-        string memory description = "Proposal: Drain Treasury";
+        ProposalPayload memory payload = _buildNoOpProposal("Proposal: Drain Treasury");
+        payload.targets[0] = address(treasury);
+        payload.calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", address(this), 1000e18);
 
         // Attacker creates proposal with minimal voting power
-        vm.prank(legitimateVoter1); // Use legitimate voter for threshold, then vote For as attacker
-        uint256 proposalId = governor.propose(targets, values, calldatas, description);
+        uint256 proposalId = _propose(governor, legitimateVoter1, payload); // Use legitimate voter for threshold, then vote For as attacker
 
         // Move to voting phase
-        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
-        vm.roll(voteStart + 1);
+        _moveToVotingStart(governor, proposalId);
 
         // Only attacker votes (with their small delegation)
         // With zero quorum, this is enough
-        vm.prank(attacker);
-        governor.castVote(proposalId, 1); // For
+        _castVote(governor, proposalId, attacker, VOTE_FOR);
 
         assertTrue(uint256(governor.state(proposalId)) == uint256(GovernorVulnerable.ProposalState.Active));
 
         // Move past voting
-        vm.roll(block.number + 101);
+        _movePastVotingEnd(governor, proposalId);
 
         // Should be Succeeded due to zero quorum
         // Any positive votes > 0 votes Against means the proposal succeeds
@@ -179,28 +168,15 @@ contract QuorumManipulationTest is Test {
 
     /// @notice Minimal voting satisfies zero quorum
     function testMinimalVotingWithZeroQuorum() public {
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
+        ProposalPayload memory payload = _buildNoOpProposal("Minimal Voting Test");
+        uint256 proposalId = _propose(governor, legitimateVoter1, payload);
 
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "Minimal Voting Test";
-
-        vm.prank(legitimateVoter1);
-        uint256 proposalId = governor.propose(targets, values, calldatas, description);
-
-        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
-        vm.roll(voteStart + 1);
+        _moveToVotingStart(governor, proposalId);
 
         // Single vote should satisfy zero quorum
-        vm.prank(legitimateVoter1);
-        governor.castVote(proposalId, 1); // For
+        _castVote(governor, proposalId, legitimateVoter1, VOTE_FOR);
 
-        vm.roll(block.number + 101);
+        _movePastVotingEnd(governor, proposalId);
 
         // With VULN-5, this should succeed
         assertEq(uint256(governor.state(proposalId)), uint256(GovernorVulnerable.ProposalState.Succeeded));
@@ -240,34 +216,20 @@ contract QuorumManipulationTest is Test {
 
         // Self-delegate
         for (uint256 i = 0; i < 5; ++i) {
-            vm.prank(voterAccounts[i]);
-            token.delegate(voterAccounts[i]);
+            _delegateSelf(token, voterAccounts[i]);
         }
 
         vm.roll(block.number + 1);
 
         // Create proposal
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
+        ProposalPayload memory payload = _buildNoOpProposal("Test Coordinated Voting");
+        uint256 proposalId = _propose(governor, legitimateVoter1, payload);
 
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "Test Coordinated Voting";
-
-        vm.prank(legitimateVoter1);
-        uint256 proposalId = governor.propose(targets, values, calldatas, description);
-
-        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
-        vm.roll(voteStart + 1);
+        _moveToVotingStart(governor, proposalId);
 
         // Coordinate: all vote For
         for (uint256 i = 0; i < 5; ++i) {
-            vm.prank(voterAccounts[i]);
-            governor.castVote(proposalId, 1); // For
+            _castVote(governor, proposalId, voterAccounts[i], VOTE_FOR);
         }
 
         (uint256 against, uint256 forVotes, uint256 abstain) = governor.proposalVotes(proposalId);
@@ -285,28 +247,15 @@ contract QuorumManipulationTest is Test {
         // Simulate low participation: only one person votes
         // But with zero quorum (VULN-5), even 1 vote passes
 
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
+        ProposalPayload memory payload = _buildNoOpProposal("Low Participation Proposal");
+        uint256 proposalId = _propose(governor, legitimateVoter1, payload);
 
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "Low Participation Proposal";
-
-        vm.prank(legitimateVoter1);
-        uint256 proposalId = governor.propose(targets, values, calldatas, description);
-
-        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
-        vm.roll(voteStart + 1);
+        _moveToVotingStart(governor, proposalId);
 
         // Only one vote For
-        vm.prank(legitimateVoter1);
-        governor.castVote(proposalId, 1);
+        _castVote(governor, proposalId, legitimateVoter1, VOTE_FOR);
 
-        vm.roll(block.number + 101);
+        _movePastVotingEnd(governor, proposalId);
 
         // Should succeed despite low participation
         assertEq(uint256(governor.state(proposalId)), uint256(GovernorVulnerable.ProposalState.Succeeded));

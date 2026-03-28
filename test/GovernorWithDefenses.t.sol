@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test} from "forge-std/Test.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {Timelock} from "../src/governance/Timelock.sol";
 import {GovernorWithDefenses, ITokenVotes} from "../src/governance/GovernorWithDefenses.sol";
+import {TestHelpers} from "./{helpers}/TestHelpers.sol";
 
 /**
  * @title GovernorWithDefensesTest
@@ -57,7 +57,7 @@ import {GovernorWithDefenses, ITokenVotes} from "../src/governance/GovernorWithD
  *
  * ============================================================
  */
-contract GovernorWithDefensesTest is Test {
+contract GovernorWithDefensesTest is TestHelpers {
     // ─────────────────────────────────────────────────────────────────────────
     // Contracts
     // ─────────────────────────────────────────────────────────────────────────
@@ -136,12 +136,11 @@ contract GovernorWithDefensesTest is Test {
         vm.stopPrank();
 
         // 6. Self-delegate to activate voting power.
-        vm.prank(user1);
-        token.delegate(user1);
-        vm.prank(user2);
-        token.delegate(user2);
-        vm.prank(user3);
-        token.delegate(user3);
+        address[] memory delegates = new address[](3);
+        delegates[0] = user1;
+        delegates[1] = user2;
+        delegates[2] = user3;
+        _batchDelegateSelf(token, delegates);
 
         // Advance one block so delegation checkpoints are in the past.
         vm.roll(block.number + 1);
@@ -199,6 +198,14 @@ contract GovernorWithDefensesTest is Test {
     function _queueProposal(uint256 proposalId) internal returns (uint256 eta) {
         governor.queue(proposalId);
         eta = block.timestamp + MIN_DELAY;
+    }
+
+    /// @dev Full lifecycle helper: propose -> active -> quorum for votes -> vote end.
+    function _createSucceededProposal() internal returns (uint256 proposalId) {
+        proposalId = _propose();
+        _advanceToActive(proposalId);
+        _castForVotes(proposalId);
+        _advancePastVoteEnd(proposalId);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -373,10 +380,7 @@ contract GovernorWithDefensesTest is Test {
 
     /// @notice FIX-3: queue() moves Succeeded → Queued and schedules in timelock.
     function testTimelockQueue() public {
-        uint256 proposalId = _propose();
-        _advanceToActive(proposalId);
-        _castForVotes(proposalId);
-        _advancePastVoteEnd(proposalId);
+        uint256 proposalId = _createSucceededProposal();
 
         assertEq(uint256(governor.state(proposalId)), uint256(GovernorWithDefenses.ProposalState.Succeeded));
 
@@ -396,10 +400,7 @@ contract GovernorWithDefensesTest is Test {
 
     /// @notice FIX-3: execute() dispatches through timelock after minDelay.
     function testTimelockExecute() public {
-        uint256 proposalId = _propose();
-        _advanceToActive(proposalId);
-        _castForVotes(proposalId);
-        _advancePastVoteEnd(proposalId);
+        uint256 proposalId = _createSucceededProposal();
         _queueProposal(proposalId);
 
         // Fast-forward past the timelock delay.
@@ -416,10 +417,7 @@ contract GovernorWithDefensesTest is Test {
 
     /// @notice FIX-3: calling execute() before queue() reverts.
     function testCannotExecuteWithoutQueue() public {
-        uint256 proposalId = _propose();
-        _advanceToActive(proposalId);
-        _castForVotes(proposalId);
-        _advancePastVoteEnd(proposalId);
+        uint256 proposalId = _createSucceededProposal();
 
         // proposal is Succeeded but NOT Queued yet
         vm.expectRevert("GovernorWithDefenses: proposal not queued");
@@ -428,10 +426,7 @@ contract GovernorWithDefensesTest is Test {
 
     /// @notice FIX-3: execute() reverts when the timelock delay has not elapsed.
     function testCannotExecuteBeforeDelay() public {
-        uint256 proposalId = _propose();
-        _advanceToActive(proposalId);
-        _castForVotes(proposalId);
-        _advancePastVoteEnd(proposalId);
+        uint256 proposalId = _createSucceededProposal();
         _queueProposal(proposalId);
 
         // Do NOT warp past MIN_DELAY.
@@ -494,10 +489,7 @@ contract GovernorWithDefensesTest is Test {
     /// @notice Governance_Spec §Expired: a queued proposal that is not executed
     ///         within GRACE_PERIOD transitions to Expired.
     function testExpiredProposal() public {
-        uint256 proposalId = _propose();
-        _advanceToActive(proposalId);
-        _castForVotes(proposalId);
-        _advancePastVoteEnd(proposalId);
+        uint256 proposalId = _createSucceededProposal();
         _queueProposal(proposalId);
 
         // Warp past MIN_DELAY + GRACE_PERIOD.
@@ -512,10 +504,7 @@ contract GovernorWithDefensesTest is Test {
 
     /// @notice Expired proposal cannot be executed.
     function testCannotExecuteExpiredProposal() public {
-        uint256 proposalId = _propose();
-        _advanceToActive(proposalId);
-        _castForVotes(proposalId);
-        _advancePastVoteEnd(proposalId);
+        uint256 proposalId = _createSucceededProposal();
         _queueProposal(proposalId);
 
         vm.warp(block.timestamp + MIN_DELAY + governor.GRACE_PERIOD() + 1);

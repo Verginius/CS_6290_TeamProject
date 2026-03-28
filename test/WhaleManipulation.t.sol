@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test} from "forge-std/Test.sol";
 import {WhaleManipulation} from "../src/attacks/WhaleManipulation.sol";
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
 import {GovernorVulnerable, ITokenVotes} from "../src/governance/GovernorVulnerable.sol";
 import {Timelock} from "../src/governance/Timelock.sol";
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
+import {TestHelpers} from "./{helpers}/TestHelpers.sol";
 
 /**
  * @title WhaleManipulationTest
@@ -52,7 +52,7 @@ import {MockTreasury} from "../src/mocks/MockTreasury.sol";
  * ============================================================
  */
 
-contract WhaleManipulationTest is Test {
+contract WhaleManipulationTest is TestHelpers {
     // ─────────────────────────────────────────────────────────────────────────
     // Contracts
     // ─────────────────────────────────────────────────────────────────────────
@@ -116,14 +116,12 @@ contract WhaleManipulationTest is Test {
         vm.stopPrank();
 
         // 6. Self-delegate
-        vm.prank(whale);
-        token.delegate(whale);
-        vm.prank(minority1);
-        token.delegate(minority1);
-        vm.prank(minority2);
-        token.delegate(minority2);
-        vm.prank(minority3);
-        token.delegate(minority3);
+        address[] memory delegates = new address[](4);
+        delegates[0] = whale;
+        delegates[1] = minority1;
+        delegates[2] = minority2;
+        delegates[3] = minority3;
+        _batchDelegateSelf(token, delegates);
 
         vm.roll(block.number + 1);
 
@@ -178,30 +176,17 @@ contract WhaleManipulationTest is Test {
 
     /// @notice Whale proposals always pass
     function testWhaleProposalAlwaysPasses() public {
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "Whale proposal: Transfer to whale";
-
-        vm.prank(whale);
-        uint256 proposalId = governor.propose(targets, values, calldatas, description);
+        ProposalPayload memory payload = _buildNoOpProposal("Whale proposal: Transfer to whale");
+        uint256 proposalId = _propose(governor, whale, payload);
 
         // Move to voting
-        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
-        vm.roll(voteStart + 1);
+        _moveToVotingStart(governor, proposalId);
 
         // Whale votes For (own proposal)
-        vm.prank(whale);
-        governor.castVote(proposalId, 1);
+        _castVote(governor, proposalId, whale, VOTE_FOR);
 
         // Move past voting
-        vm.roll(block.number + 101);
+        _movePastVotingEnd(governor, proposalId);
 
         // With 51% For, proposal should Succeed (quorum is 4%)
         assertEq(
@@ -213,37 +198,21 @@ contract WhaleManipulationTest is Test {
 
     /// @notice Whale vote cannot be overridden by minority
     function testWhaleVoteCannotBeOverridden() public {
-        address[] memory targets = new address[](1);
-        targets[0] = address(0);
+        ProposalPayload memory payload = _buildNoOpProposal("Proposal: Test override");
+        uint256 proposalId = _propose(governor, minority1, payload);
 
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = "";
-
-        string memory description = "Proposal: Test override";
-
-        vm.prank(minority1);
-        uint256 proposalId = governor.propose(targets, values, calldatas, description);
-
-        (uint256 voteStart,) = governor.proposalSnapshot(proposalId);
-        vm.roll(voteStart + 1);
+        _moveToVotingStart(governor, proposalId);
 
         // Majority votes Against (all minorities vote For)
-        vm.prank(minority1);
-        governor.castVote(proposalId, 1); // For
-        vm.prank(minority2);
-        governor.castVote(proposalId, 1); // For
-        vm.prank(minority3);
-        governor.castVote(proposalId, 1); // For
+        _castVote(governor, proposalId, minority1, VOTE_FOR); // For
+        _castVote(governor, proposalId, minority2, VOTE_FOR); // For
+        _castVote(governor, proposalId, minority3, VOTE_FOR); // For
 
         // Total For: ~36.75%
         // But whale votes Against
-        vm.prank(whale);
-        governor.castVote(proposalId, 0); // Against (51%)
+        _castVote(governor, proposalId, whale, VOTE_AGAINST); // Against (51%)
 
-        vm.roll(block.number + 101);
+        _movePastVotingEnd(governor, proposalId);
 
         // Whale's 51% Against overrides all minority For votes
         assertEq(
