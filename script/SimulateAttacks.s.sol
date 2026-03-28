@@ -112,7 +112,8 @@ contract SimulateAttacks is Script {
         GovernorVulnerable gov = GovernorVulnerable(payable(governor));
         address whale = address(0xDEADBEEF);
 
-        require(GovernanceToken(govToken).transfer(whale, 600_000_000e18), "transfer to whale failed");
+        require(GovernanceToken(govToken).transfer(whale, 100_000_000e18), "transfer to whale failed");
+        vm.stopBroadcast();   // 关键：关闭 broadcast
         vm.prank(whale);
         GovernanceToken(govToken).delegate(whale);
 
@@ -130,6 +131,8 @@ contract SimulateAttacks is Script {
 
         // Move beyond voting period so proposal can be evaluated/executed.
         vm.roll(block.number + gov.votingPeriod() + 1);
+
+        vm.startBroadcast();   // 恢复 broadcast
 
         bool success = attack.executeAfterWhaleVote(proposalId);
         console.log("Attack execution result: ", success);

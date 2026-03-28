@@ -1,0 +1,18 @@
+No files changed, compilation skipped
+Traces:
+  [346289] → new ExportData@0x9f7cF1d1F558E57ef88a59ac3D47214eF25B6A06
+    └─ ← [Return] 1619 bytes of code
+
+  [6809] ExportData::run()
+    ├─ [0] console::log("[EXPORTING ATTACK DATA TO JSON]") [staticcall]
+    │   └─ ← [Stop]
+    ├─ [0] VM::envExists("RAW_INPUT_FILE") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::readFile("./analysis/data/raw/attack_simulation_raw.json") [staticcall]
+    │   └─ ← [Revert] vm.readFile: the path analysis\data\raw\attack_simulation_raw.json is not allowed to be accessed for read operations
+    └─ ← [Revert] ExportData: raw simulation JSON not found; run SimulateAttacks first or set RAW_INPUT_FILE
+
+
+
+== Logs ==
+  [EXPORTING ATTACK DATA TO JSON]
