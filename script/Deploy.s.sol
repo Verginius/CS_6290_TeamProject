@@ -197,7 +197,7 @@ contract Deploy is Script {
         console.log("MockTreasury deployed at:", deployedMockTreasury);
 
         // Fund the treasury
-        mockToken.mint(address(this), 10_000_000e18); // 10 million - mint to deployer
+        mockToken.mint(admin, 10_000_000e18); // 10 million - mint to admin (broadcaster)
         MockTreasury treasury = MockTreasury(payable(deployedMockTreasury));
         mockToken.approve(deployedMockTreasury, 10_000_000e18);
         treasury.depositToken(deployedMockToken, 10_000_000e18);
