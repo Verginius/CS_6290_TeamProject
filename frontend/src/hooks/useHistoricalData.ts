@@ -4,19 +4,18 @@ import type { HistoricalData } from '../types/historical';
 
 // Mock 数据（与原有静态数据一致，但根据时间范围可调整）
 const getMockData = (range: string): HistoricalData => {
-  // 根据 range 返回不同的 mock 数据，这里简单返回固定的
   return {
     frequency: [
-      { date: 'Week 1', flashLoan: 12, sybil: 5, bribery: 3 },
-      { date: 'Week 2', flashLoan: 28, sybil: 8, bribery: 6 },
-      { date: 'Week 3', flashLoan: 15, sybil: 12, bribery: 9 },
-      { date: 'Week 4', flashLoan: 9, sybil: 7, bribery: 4 },
+      { date: 'Week 1', flashLoan: 12, whale: 8, spam: 15, quorum: 5, timelock: 3 },
+      { date: 'Week 2', flashLoan: 28, whale: 12, spam: 25, quorum: 9, timelock: 6 },
+      { date: 'Week 3', flashLoan: 15, whale: 18, spam: 30, quorum: 12, timelock: 9 },
+      { date: 'Week 4', flashLoan: 9, whale: 14, spam: 22, quorum: 10, timelock: 7 },
     ],
     successRate: [
-      { date: 'Week 1', flashLoan: 92, sybil: 78, bribery: 65 },
-      { date: 'Week 2', flashLoan: 88, sybil: 72, bribery: 60 },
-      { date: 'Week 3', flashLoan: 87, sybil: 68, bribery: 55 },
-      { date: 'Week 4', flashLoan: 85, sybil: 65, bribery: 52 },
+      { date: 'Week 1', flashLoan: 92, whale: 85, spam: 88, quorum: 75, timelock: 70 },
+      { date: 'Week 2', flashLoan: 88, whale: 80, spam: 85, quorum: 70, timelock: 65 },
+      { date: 'Week 3', flashLoan: 87, whale: 78, spam: 82, quorum: 68, timelock: 62 },
+      { date: 'Week 4', flashLoan: 85, whale: 75, spam: 80, quorum: 65, timelock: 58 },
     ],
     attackCost: [
       { date: 'Week 1', average: 0.8, median: 0.5 },
@@ -25,10 +24,10 @@ const getMockData = (range: string): HistoricalData => {
       { date: 'Week 4', average: 1.2, median: 0.9 },
     ],
     defenseAdoption: [
-      { date: 'Week 1', timelock: 15, quorum: 8, multisig: 3 },
-      { date: 'Week 2', timelock: 25, quorum: 15, multisig: 8 },
-      { date: 'Week 3', timelock: 35, quorum: 24, multisig: 12 },
-      { date: 'Week 4', timelock: 45, quorum: 32, multisig: 18 },
+      { date: 'Week 1', votingDelay: 10, snapshotVoting: 5, tokenLocking: 3, dynamicQuorum: 2, emergencyPause: 1 },
+      { date: 'Week 2', votingDelay: 18, snapshotVoting: 12, tokenLocking: 8, dynamicQuorum: 5, emergencyPause: 3 },
+      { date: 'Week 3', votingDelay: 28, snapshotVoting: 20, tokenLocking: 15, dynamicQuorum: 10, emergencyPause: 6 },
+      { date: 'Week 4', votingDelay: 38, snapshotVoting: 30, tokenLocking: 22, dynamicQuorum: 16, emergencyPause: 12 },
     ],
     correlation: [
       { metric: 'Attack Frequency', freq: 1.0, success: -0.65, cost: 0.42, defense: -0.78 },
@@ -37,9 +36,9 @@ const getMockData = (range: string): HistoricalData => {
       { metric: 'Defense Adoption', freq: -0.78, success: 0.21, cost: -0.15, defense: 1.0 },
     ],
     predictions: {
-      attackFrequencyChange: 15,
-      successRateChange: -8,
-      recommendation: 'Increase Timelock to 72 hours',
+      attackFrequencyChange: 12,
+      successRateChange: -10,
+      recommendation: 'Enable Emergency Pause and increase Voting Delay',
     },
   };
 };

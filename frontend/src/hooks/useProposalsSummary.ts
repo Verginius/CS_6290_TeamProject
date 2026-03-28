@@ -37,6 +37,18 @@
 //   return { active, voting, loading };
 // };
 
+// import { useState, useEffect } from 'react';
+
+// export const useProposalsSummary = (mode: 'vulnerable' | 'defense' = 'vulnerable') => {
+//   const [active, setActive] = useState(2);
+//   const [voting, setVoting] = useState(1);
+//   const [loading, setLoading] = useState(false);
+
+//   // 暂时用静态数据，等合约可用后再替换
+//   return { active, voting, loading };
+// };
+
+// src/hooks/useProposalsSummary.ts
 import { useState, useEffect } from 'react';
 
 export const useProposalsSummary = (mode: 'vulnerable' | 'defense' = 'vulnerable') => {
@@ -44,6 +56,6 @@ export const useProposalsSummary = (mode: 'vulnerable' | 'defense' = 'vulnerable
   const [voting, setVoting] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // 暂时用静态数据，等合约可用后再替换
+  // TODO: 后续替换为真实合约调用或后端 API
   return { active, voting, loading };
 };

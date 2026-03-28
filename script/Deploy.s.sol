@@ -128,7 +128,7 @@ contract Deploy is Script {
             // forge-lint: disable-next-line(unsafe-typecast)
             uint32(VOTING_PERIOD),
             1e16, // 1% proposal threshold
-            0.04e18 // 4% quorum
+            4 // 4% quorum
         );
         deployedGovernorBase = address(governorBase);
         console.log("GovernorBase deployed at:", deployedGovernorBase);
@@ -159,7 +159,7 @@ contract Deploy is Script {
             // forge-lint: disable-next-line(unsafe-typecast)
             uint32(VOTING_PERIOD),
             1e16, // 1% proposal threshold
-            0.04e18 // 4% quorum
+            4 // 4% quorum
         );
         deployedGovernorWithDefenses = address(governorWithDefenses);
         console.log("GovernorWithDefenses deployed at:", deployedGovernorWithDefenses);
