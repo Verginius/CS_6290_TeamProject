@@ -134,7 +134,7 @@ Next Steps:
 
 2. **Whale Manipulation**
    - Concentrated voting power (>51%)
-   - Single actor passes self-serving proposals
+  - Two-phase flow: create proposal, whale votes directly, then execute
    - No coalition needed
    - Expected cost: ~$50k (just holding tokens)
    - Risk Level: HIGH
@@ -187,6 +187,8 @@ Attack succeeded: true
 📡 ATTACK 2: Whale Manipulation
 ════════════════════════════════════════════════════════════
 Created whale with 60% voting power
+Created whale proposal ID:  0x...
+Whale vote weight:  600000000000000000000000000
 Attack execution result:  true
 Stolen amount:     60000000000000000000000000
 Attack succeeded:  true

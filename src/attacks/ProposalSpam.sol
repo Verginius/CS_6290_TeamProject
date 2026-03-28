@@ -62,6 +62,7 @@ contract ProposalSpam {
 
     uint256 public totalSpamProposals;
     uint256 public maliciousProposalId;
+    uint256 public maliciousProposalCount;
     bool public maliciousProposalPassed;
 
     uint256[] public spamProposalIds;
@@ -185,6 +186,7 @@ contract ProposalSpam {
             isMalicious: true,
             wasHidden: true // Hidden among spam
         });
+        maliciousProposalCount++;
 
         emit MaliciousProposalHidden(proposalId, spamProposalIds.length);
         emit MaliciousProposalDetected(proposalId);
@@ -264,7 +266,7 @@ contract ProposalSpam {
         )
     {
         totalProposals = spamProposalIds.length;
-        percentMalicious = totalProposals > 0 ? (100 / totalProposals) : 0;
+        percentMalicious = totalProposals > 0 ? (maliciousProposalCount * 100) / totalProposals : 0;
 
         // Voter fatigue increases with number of proposals
         // Each proposal costs ~2-5 minutes to review

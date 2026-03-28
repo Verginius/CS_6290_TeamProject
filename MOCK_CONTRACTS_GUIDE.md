@@ -254,14 +254,21 @@ MockTreasury treasury = new MockTreasury(signers, 1, 100e18);
 address whale = address(0x1);
 govToken.mint(whale, 60_000_000e18);  // 60% of supply
 
-// 3. 执行鲸鱼攻击
+// 3. 执行两阶段鲸鱼攻击
 WhaleManipulation attacked = new WhaleManipulation(
     address(govToken),
     address(governor),
     address(treasury)
 );
 
-attacked.executeWhaleAttack(whale, 100_000e18);
+// 阶段1: 创建提案
+uint256 proposalId = attacked.createWhaleProposal(whale, 100_000e18);
+
+// 阶段2: 由whale地址直接在Governor上投票（示意）
+// governor.castVote(proposalId, 1); // caller必须是whale
+
+// 投票结束后执行
+attacked.executeAfterWhaleVote(proposalId);
 ```
 
 ---

@@ -76,6 +76,9 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     /// @notice Transaction history
     Transaction[] public transactions;
 
+    /// @notice Per-transaction signer confirmations
+    mapping(uint256 => mapping(address => bool)) public hasApprovedWithdrawal;
+
     /// @notice Maximum amount that can be transferred per transaction without multi-sig approval
     uint256 public spendingLimit;
 
@@ -94,6 +97,7 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     event TokenDeposited(address indexed token, uint256 amount);
     event TokenWithdrawn(address indexed token, address indexed to, uint256 amount);
     event TransactionCreated(uint256 indexed txId, address indexed initiator, address indexed token, uint256 amount);
+    event WithdrawalApproved(uint256 indexed txId, address indexed signer, uint256 approvals, uint256 required);
     event TransactionExecuted(uint256 indexed txId, address indexed executor);
     event TransactionFailed(uint256 indexed txId, string reason);
     event WithdrawalAttempted(address indexed attacker, address indexed token, uint256 amount);
@@ -257,10 +261,44 @@ contract MockTreasury is Ownable, ReentrancyGuard {
         });
 
         transactions.push(txn);
+        uint256 txId = transactions.length - 1;
 
-        emit TransactionCreated(transactions.length - 1, msg.sender, token, amount);
+        // Proposer counts as the first confirmation.
+        hasApprovedWithdrawal[txId][msg.sender] = true;
+        uint256 approvals = _getConfirmationCount(txId);
+        if (approvals >= requiredSignatures) {
+            transactions[txId].status = TransactionStatus.Approved;
+        }
 
-        return transactions.length - 1;
+        emit TransactionCreated(txId, msg.sender, token, amount);
+        emit WithdrawalApproved(txId, msg.sender, approvals, requiredSignatures);
+
+        return txId;
+    }
+
+    /**
+     * @notice Confirm a pending withdrawal transaction.
+     * @param txId Transaction ID to confirm
+     */
+    function confirmWithdrawal(uint256 txId) external onlySigner returns (bool) {
+        require(txId < transactions.length, "Invalid transaction ID");
+
+        Transaction storage txn = transactions[txId];
+        require(
+            txn.status == TransactionStatus.Pending || txn.status == TransactionStatus.Approved,
+            "Transaction not confirmable"
+        );
+        require(!hasApprovedWithdrawal[txId][msg.sender], "Already confirmed");
+
+        hasApprovedWithdrawal[txId][msg.sender] = true;
+
+        uint256 approvals = _getConfirmationCount(txId);
+        if (approvals >= requiredSignatures) {
+            txn.status = TransactionStatus.Approved;
+        }
+
+        emit WithdrawalApproved(txId, msg.sender, approvals, requiredSignatures);
+        return true;
     }
 
     /**
@@ -272,7 +310,11 @@ contract MockTreasury is Ownable, ReentrancyGuard {
 
         Transaction storage txn = transactions[txId];
 
-        require(txn.status == TransactionStatus.Pending, "Transaction not pending");
+        require(
+            txn.status == TransactionStatus.Pending || txn.status == TransactionStatus.Approved,
+            "Transaction not pending"
+        );
+        require(_getConfirmationCount(txId) >= requiredSignatures, "Insufficient confirmations");
         require(tokenBalance[txn.token] >= txn.amount, "Insufficient balance");
 
         // Execute the withdrawal
@@ -472,6 +514,14 @@ contract MockTreasury is Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice Returns current confirmations for a transaction from active signers.
+     */
+    function getConfirmationCount(uint256 txId) external view returns (uint256) {
+        require(txId < transactions.length, "Invalid transaction ID");
+        return _getConfirmationCount(txId);
+    }
+
+    /**
      * @notice Get attack summary for address
      */
     function getAttackSummary(address attacker)
@@ -511,5 +561,13 @@ contract MockTreasury is Ownable, ReentrancyGuard {
 
     function _onlySigner() internal view {
         require(isSigner[msg.sender], "Not authorized");
+    }
+
+    function _getConfirmationCount(uint256 txId) internal view returns (uint256 count) {
+        for (uint256 i = 0; i < signers.length; i++) {
+            if (hasApprovedWithdrawal[txId][signers[i]]) {
+                count++;
+            }
+        }
     }
 }

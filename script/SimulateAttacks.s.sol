@@ -13,6 +13,7 @@ import {TimelockExploit} from "../src/attacks/TimelockExploit.sol";
 
 // Token and Contracts
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
+import {GovernorVulnerable} from "../src/governance/GovernorVulnerable.sol";
 
 /**
  * @title SimulateAttacks
@@ -106,10 +107,29 @@ contract SimulateAttacks is Script {
     function _simulateWhaleManipulation(address govToken, address governor, address mockTreasury) internal {
         console.log("[2] Whale Manipulation");
         WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
+        GovernorVulnerable gov = GovernorVulnerable(payable(governor));
         address whale = address(0xDEADBEEF);
+
         GovernanceToken(govToken).mint(whale, 600_000_000e18);
+        vm.prank(whale);
+        GovernanceToken(govToken).delegate(whale);
+
         console.log("Created whale with 60% voting power");
-        bool success = attack.executeWhaleAttack(whale, WHALE_ATTACK_DRAIN);
+
+        uint256 proposalId = attack.createWhaleProposal(whale, WHALE_ATTACK_DRAIN);
+        console.log("Created whale proposal ID: ", proposalId);
+
+        // Move from Pending to Active.
+        vm.roll(block.number + gov.votingDelay() + 1);
+
+        // Whale votes directly on governor so voting weight is attributed correctly.
+        vm.prank(whale);
+        console.log("Whale vote weight: ", gov.castVote(proposalId, 1));
+
+        // Move beyond voting period so proposal can be evaluated/executed.
+        vm.roll(block.number + gov.votingPeriod() + 1);
+
+        bool success = attack.executeAfterWhaleVote(proposalId);
         console.log("Attack execution result: ", success);
         uint256 stolenAmount = attack.getAmountStolen();
         bool succeeded = attack.wasAttackSuccessful();
@@ -120,7 +140,7 @@ contract SimulateAttacks is Script {
                 attackName: "Whale Manipulation",
                 succeeded: succeeded,
                 amountExtracted: stolenAmount,
-                details: "Whale with 60% voting power passed self-serving proposal"
+                details: "Whale directly voted then executed self-serving proposal"
             })
         );
         console.log("PASS: Whale Manipulation completed");

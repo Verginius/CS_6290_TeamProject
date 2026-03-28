@@ -50,7 +50,7 @@ contract SetupScenarios is Script {
     function run() external {
         console.log("[SETTING UP GOVERNANCE TEST SCENARIOS]");
 
-        string memory scenarioSelect = "A"; // Default to scenario A
+        string memory scenarioSelect = vm.envExists("SCENARIO") ? vm.envString("SCENARIO") : "A";
         _selectScenario(scenarioSelect);
 
         console.log("Selected Scenario: ", selectedScenario.name);

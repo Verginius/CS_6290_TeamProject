@@ -34,8 +34,9 @@
   - 低参与率使攻击更容易成功
 
 **主要功能**:
-- `executeWhaleAttack()`: 执行单个鲸鱼攻击
-- `_performWhaleAttack()`: 内部攻击逻辑
+- `createWhaleProposal()`: 第一阶段，仅创建鲸鱼提案
+- `executeAfterWhaleVote()`: 第二阶段，鲸鱼地址完成投票后执行提案
+- `executeWhaleAttack()`: 兼容路径（依赖将投票权委托到攻击合约）
 - `executeGradualDraining()`: 执行多轮逐次drain
 - `getWhaleVotingPercentage()`: 获取鲸鱼投票权百分比
 - `getProfitabilityRatio()`: 计算攻击收益率

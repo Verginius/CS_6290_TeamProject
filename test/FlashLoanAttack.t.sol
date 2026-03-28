@@ -37,8 +37,8 @@ import {MockTreasury} from "../src/mocks/MockTreasury.sol";
  *                                 to cast votes in the same block.
  *
  * testAttackCannotRepeatedlyBorrow
- *                               — Flash loan provider prevents reentrancy
- *                                 by tracking active loans.
+ *                               — Repeated attempts still fail under the
+ *                                 governor voting-delay constraint.
  *
  * testInvalidFlashLoanProvider  — Constructor rejects zero address for provider.
  *
@@ -264,8 +264,8 @@ contract FlashLoanAttackTest is Test {
         bool firstAttempt = attack.executeAttack(FLASH_LOAN_AMOUNT, TREASURY_DRAIN_AMOUNT);
         assertFalse(firstAttempt, "First attack should fail due to voting delay");
 
-        // Second attack in same transaction would fail if flash loan provider
-        // prevents reentrancy (which MockFlashLoanProvider should do)
+        // Second attempt is expected to fail for the same governor timing reason.
+        // MockFlashLoanProvider does not implement active-loan reentrancy tracking.
         FlashLoanAttack attack2 =
             new FlashLoanAttack(address(flashLoanProvider), address(token), address(governor), address(treasury));
 
