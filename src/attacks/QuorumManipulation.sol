@@ -196,15 +196,13 @@ contract QuorumManipulation {
         proposalId = IGovernor(governor).propose(targets, values, calldatas, description);
         maliciousProposalId = proposalId;
 
-        // Vote with all Sybil accounts
+        // Cast a vote from this contract.
+        // NOTE: True Sybil behavior (many distinct msg.senders) must be
+        // simulated in tests using vm.prank per account.
         uint256 successfulVotes = 0;
-        for (uint256 i = 0; i < sybilAccounts.length && i < 100; i++) {
-            // In simulation, we can directly call as each account
-            // In practice, we'd coordinate externally
-            try IGovernor(governor).castVote(proposalId, VOTE_FOR) {
-                successfulVotes++;
-            } catch {}
-        }
+        try IGovernor(governor).castVote(proposalId, VOTE_FOR) {
+            successfulVotes = 1;
+        } catch {}
 
         if (successfulVotes > 0) {
             attackSucceeded = true;
