@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-
 /**
  * @title WhaleManipulation
  * @dev Simulates a whale holder accumulating >40-51% of voting power
@@ -190,7 +189,7 @@ contract WhaleManipulation {
         calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", whale, treasuryDrainAmount);
 
         string memory description = "PROPOSAL: Whale Treasury Allocation - Emergency Deployment Funds";
-        bytes32 descriptionHash = keccak256(bytes(description));
+        bytes32 descriptionHash = _hashDescription(description);
 
         // Create proposal
         uint256 proposalId = IGovernor(governor).propose(targets, values, calldatas, description);
@@ -259,7 +258,7 @@ contract WhaleManipulation {
 
             string memory description = string(abi.encodePacked("PROPOSAL: Whale Allocation Round ", _uint2str(i + 1)));
 
-            bytes32 descriptionHash = keccak256(bytes(description));
+            bytes32 descriptionHash = _hashDescription(description);
 
             try IGovernor(governor).propose(targets, values, calldatas, description) returns (uint256 proposalId) {
                 // Vote for the proposal
@@ -350,5 +349,11 @@ contract WhaleManipulation {
             _i /= 10;
         }
         return string(bstr);
+    }
+
+    function _hashDescription(string memory description) internal pure returns (bytes32 hash) {
+        assembly {
+            hash := keccak256(add(description, 32), mload(description))
+        }
     }
 }

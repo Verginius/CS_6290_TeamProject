@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-
 /**
  * @title ProposalSpam
  * @dev Exploits VULN-4: Zero proposal threshold

