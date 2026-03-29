@@ -198,9 +198,7 @@ contract ThersholdQuorumDefenseTest is Test {
         returns (ThersholdQuorumDefense.ProposalThresholdConfig memory)
     {
         return ThersholdQuorumDefense.ProposalThresholdConfig({
-            basisPoints: basisPoints,
-            absoluteMinimum: absoluteMinimum,
-            description: "default threshold"
+            basisPoints: basisPoints, absoluteMinimum: absoluteMinimum, description: "default threshold"
         });
     }
 

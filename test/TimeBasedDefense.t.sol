@@ -71,10 +71,7 @@ contract TimeBasedDefenseTest is Test {
         vm.prank(admin);
         bytes32 txHash = timelock.queueTransaction(address(target), 0, "store(uint256)", data, eta);
         assertTrue(timelock.queuedTransactions(txHash));
-        assertEq(
-            timelock.getTransactionHash(address(target), 0, "store(uint256)", data, eta),
-            txHash
-        );
+        assertEq(timelock.getTransactionHash(address(target), 0, "store(uint256)", data, eta), txHash);
 
         vm.warp(eta);
         vm.prank(admin);

@@ -23,7 +23,9 @@ contract StructuralControlDefenseTest is Test {
     function testConstructorInitializesRolesAndPhase() public view {
         assertEq(defense.requiredSigs(), 2);
         assertEq(defense.requiredPauseConfirmations(), 2);
-        assertEq(uint256(defense.currentPhase()), uint256(StructuralControlDefense.ProgressiveDecentralizationPhase.PHASE_1));
+        assertEq(
+            uint256(defense.currentPhase()), uint256(StructuralControlDefense.ProgressiveDecentralizationPhase.PHASE_1)
+        );
         assertEq(defense.getSigners().length, 3);
         assertEq(defense.getGuardians().length, 2);
         assertEq(defense.getPauseAdmins().length, 3);
