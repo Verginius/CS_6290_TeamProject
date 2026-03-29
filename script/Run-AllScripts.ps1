@@ -1,0 +1,171 @@
+param(
+    [string]$RpcUrl = "",
+    [string]$PrivateKey = "",
+    [ValidateSet("A", "B", "C", "D", "E")]
+    [string]$Scenario = "",
+    [switch]$NoBroadcast,
+    [switch]$BroadcastSimulations,
+    [switch]$DryRun
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Resolve-Path (Join-Path $scriptDir "..")
+Set-Location $projectRoot
+$script:ForgeExecutable = "forge"
+
+if ([string]::IsNullOrWhiteSpace($RpcUrl)) {
+    if (-not [string]::IsNullOrWhiteSpace($env:LOCALHOST_RPC_URL)) {
+        $RpcUrl = $env:LOCALHOST_RPC_URL
+    } elseif (-not [string]::IsNullOrWhiteSpace($env:RPC_URL)) {
+        $RpcUrl = $env:RPC_URL
+    } else {
+        $RpcUrl = "http://localhost:8545"
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($Scenario)) {
+    if (-not [string]::IsNullOrWhiteSpace($env:SCENARIO)) {
+        $Scenario = $env:SCENARIO
+    } else {
+        $Scenario = "A"
+    }
+}
+
+$useBroadcast = -not $NoBroadcast
+
+if ($useBroadcast -and [string]::IsNullOrWhiteSpace($PrivateKey)) {
+    if (-not [string]::IsNullOrWhiteSpace($env:PRIVATE_KEY)) {
+        $PrivateKey = $env:PRIVATE_KEY
+    } elseif (-not [string]::IsNullOrWhiteSpace($env:DEPLOYER_KEY)) {
+        $PrivateKey = $env:DEPLOYER_KEY
+    }
+}
+
+if ($useBroadcast -and -not $DryRun -and [string]::IsNullOrWhiteSpace($PrivateKey)) {
+    throw "Private key is required when broadcasting. Provide -PrivateKey, or set PRIVATE_KEY / DEPLOYER_KEY."
+}
+
+if (-not $DryRun) {
+    $forgeCmd = Get-Command forge -ErrorAction SilentlyContinue
+    if ($null -ne $forgeCmd) {
+        $script:ForgeExecutable = $forgeCmd.Source
+    } else {
+        $fallbackForge = Join-Path $env:USERPROFILE ".foundry\bin\forge.exe"
+        if (Test-Path $fallbackForge) {
+            $script:ForgeExecutable = $fallbackForge
+            Write-Host "forge not found in PATH, using fallback: $fallbackForge" -ForegroundColor Yellow
+        } else {
+            throw "forge command not found. Install Foundry first: https://book.getfoundry.sh/getting-started/installation"
+        }
+    }
+}
+
+function Invoke-ForgeScript {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Label,
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptTarget,
+        [hashtable]$TempEnv = @{},
+        [string[]]$ExtraArgs = @(),
+        [switch]$Broadcast
+    )
+
+    Write-Host ""
+    Write-Host "==== $Label ====" -ForegroundColor Cyan
+
+    $argList = @("script", $ScriptTarget, "--rpc-url", $RpcUrl)
+
+    if ($Broadcast) {
+        $argList += "--broadcast"
+    }
+    
+    if (-not [string]::IsNullOrWhiteSpace($PrivateKey)) {
+        if (-not $DryRun) {
+            $argList += @("--private-key", $PrivateKey)
+        } else {
+            $argList += @("--private-key", "<PRIVATE_KEY>")
+        }
+    }
+
+    if ($ExtraArgs.Count -gt 0) {
+        $argList += $ExtraArgs
+    }
+
+    $oldEnv = @{}
+    foreach ($key in $TempEnv.Keys) {
+        $oldEnv[$key] = [Environment]::GetEnvironmentVariable($key, "Process")
+        [Environment]::SetEnvironmentVariable($key, [string]$TempEnv[$key], "Process")
+    }
+
+    try {
+        if ($DryRun) {
+            Write-Host "[DRY RUN] forge $($argList -join ' ')" -ForegroundColor Yellow
+        } else {
+            & $script:ForgeExecutable @argList
+            if ($LASTEXITCODE -ne 0) {
+                throw "forge script failed for $ScriptTarget"
+            }
+        }
+    }
+    finally {
+        foreach ($key in $TempEnv.Keys) {
+            [Environment]::SetEnvironmentVariable($key, $oldEnv[$key], "Process")
+        }
+    }
+}
+
+function Import-EnvFile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath
+    )
+
+    if (-not (Test-Path $FilePath)) {
+        throw "Env file not found: $FilePath"
+    }
+
+    Get-Content $FilePath | ForEach-Object {
+        $line = $_.Trim()
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            return
+        }
+        if ($line.StartsWith("#")) {
+            return
+        }
+        $pair = $line -split "=", 2
+        if ($pair.Count -eq 2) {
+            [Environment]::SetEnvironmentVariable($pair[0].Trim(), $pair[1].Trim(), "Process")
+        }
+    }
+}
+
+Write-Host "Project root : $projectRoot"
+Write-Host "RPC URL      : $RpcUrl"
+Write-Host "Scenario     : $Scenario"
+Write-Host "Broadcast    : $useBroadcast"
+Write-Host "Dry run      : $DryRun"
+
+Invoke-ForgeScript -Label "1/6 Deploy Contracts" -ScriptTarget "script/Deploy.s.sol:Deploy" -Broadcast:$useBroadcast
+Invoke-ForgeScript -Label "2/6 Setup Scenario" -ScriptTarget "script/SetupScenarios.s.sol:SetupScenarios" -Broadcast:$useBroadcast -TempEnv @{ SCENARIO = $Scenario }
+
+$simEnv = Join-Path $projectRoot ".env.simulation"
+if (Test-Path $simEnv) {
+    Write-Host "Loading simulation env from $simEnv"
+    Import-EnvFile -FilePath $simEnv
+} elseif (-not $DryRun) {
+    throw "Expected .env.simulation was not generated by Deploy step."
+}
+
+Invoke-ForgeScript -Label "3/6 Simulate Attacks [Vulnerable]" -ScriptTarget "script/SimulateAttacks.s.sol:SimulateAttacks" -Broadcast:($useBroadcast -and $BroadcastSimulations)
+Invoke-ForgeScript -Label "4/6 Simulate Attacks [With Defenses]" -ScriptTarget "script/SimulateDefendedAttacks.s.sol:SimulateDefendedAttacks" -Broadcast:($useBroadcast -and $BroadcastSimulations)
+Invoke-ForgeScript -Label "5/6 Export Processed Data [Vulnerable]" -ScriptTarget "script/ExportData.s.sol:ExportData"
+Invoke-ForgeScript -Label "6/6 Export Processed Data [With Defenses]" -ScriptTarget "script/ExportDefendedData.s.sol:ExportDefendedData"
+
+Write-Host ""
+Write-Host "All script steps completed." -ForegroundColor Green
+Write-Host "Vulnerable output: analysis/data/processed/attack_simulation_results.json"
+Write-Host "Defended output: analysis/data/processed/attack_simulation_defended_results.json"

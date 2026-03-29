@@ -1,0 +1,21 @@
+{
+  "governance": {
+    "govToken": "0x103A3b128991781EE2c8db0454cA99d67b257923",
+    "governorBase": "0xB9d9e972100a1dD01cd441774b45b5821e136043",
+    "governorVulnerable": "0x707531c9999AaeF9232C8FEfBA31FBa4cB78d84a",
+    "governorWithDefenses": "0x2538a10b7fFb1B78c890c870FC152b10be121f04",
+    "timelock": "0xBbc18b580256A82dC0F9A86152b8B22E7C1C8005"
+  },
+  "mocks": {
+    "flashLoanProvider": "0x24432a08869578aAf4d1eadA12e1e78f171b1a2b",
+    "mockToken": "0xbf2ad38fd09F37f50f723E35dd84EEa1C282c5C9",
+    "mockTreasury": "0xF66CfDf074D2FFD6A4037be3A669Ed04380Aef2B"
+  },
+  "attacks": {
+    "flashLoanAttack": "0x90b97E83e22AFa2e6A96b3549A0E495D5Bae61aF",
+    "whaleManipulation": "0xdb54fa574a3e8c6aC784e1a5cdB575A737622CFf",
+    "proposalSpam": "0xDDa0648FA8c9cD593416EC37089C2a2E6060B45c",
+    "quorumManipulation": "0xccA9728291bC98ff4F97EF57Be3466227b0eb06C",
+    "timelockExploit": "0xc6B407503dE64956Ad3cF5Ab112cA4f56AA13517"
+  }
+}
