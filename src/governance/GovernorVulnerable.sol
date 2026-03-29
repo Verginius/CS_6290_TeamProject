@@ -319,9 +319,8 @@ contract GovernorVulnerable {
 
         ProposalState currentState = state(proposalId);
         require(
-            currentState == ProposalState.Succeeded || 
-            (currentState == ProposalState.Active && votingPeriod == 0), 
-            "GovernorVulnerable: proposal not executable"
+            currentState == ProposalState.Succeeded || (currentState == ProposalState.Active && votingPeriod == 0),
+            "GovernorVulnerable: proposal not succeeded"
         );
 
         // VULN-6: CEI violated — state written AFTER external calls.

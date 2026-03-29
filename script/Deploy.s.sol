@@ -149,7 +149,7 @@ contract Deploy is Script {
             0, // VOTING_DELAY = 0
             0, // VOTING_PERIOD = 0 enables immediate execution for flash loan
             0, // PROPOSAL_THRESHOLD = 0
-            0  // QUORUM_VOTES = 0
+            0 // QUORUM_VOTES = 0
         );
         deployedGovernorVulnerable = address(governorVulnerable);
         console.log("GovernorVulnerable deployed at:", deployedGovernorVulnerable);
