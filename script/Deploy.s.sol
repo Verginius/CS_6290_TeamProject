@@ -142,13 +142,14 @@ contract Deploy is Script {
 
         // Deploy GovernorVulnerable (Intentionally Vulnerable)
         console.log("Deploying GovernorVulnerable...");
+        // Change VOTING_DELAY to 0, PROPOSAL_THRESHOLD to 0, QUORUM_VOTES to 0 to maximize vulnerability vs protected version.
         GovernorVulnerable governorVulnerable = new GovernorVulnerable(
             "Governor Vulnerable",
             ITokenVotesVulnerable(address(govToken)),
-            VOTING_DELAY,
-            VOTING_PERIOD,
-            PROPOSAL_THRESHOLD,
-            QUORUM_VOTES
+            0, // VOTING_DELAY = 0
+            0, // VOTING_PERIOD = 0 enables immediate execution for flash loan
+            0, // PROPOSAL_THRESHOLD = 0
+            0  // QUORUM_VOTES = 0
         );
         deployedGovernorVulnerable = address(governorVulnerable);
         console.log("GovernorVulnerable deployed at:", deployedGovernorVulnerable);

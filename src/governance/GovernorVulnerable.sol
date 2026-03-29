@@ -167,7 +167,8 @@ contract GovernorVulnerable {
         if (p.canceled) return ProposalState.Canceled;
         if (p.executed) return ProposalState.Executed;
 
-        if (block.number <= p.voteStart) return ProposalState.Pending;
+        // VULN: Explicitly allow same-block voting if votingDelay == 0 for flash loan exploiting
+        if (block.number < p.voteStart) return ProposalState.Pending;
         if (block.number <= p.voteEnd) return ProposalState.Active;
 
         // Voting ended — check outcome
@@ -316,7 +317,12 @@ contract GovernorVulnerable {
     ) external payable returns (uint256 proposalId) {
         proposalId = hashProposal(targets, values, calldatas, descriptionHash);
 
-        require(state(proposalId) == ProposalState.Succeeded, "GovernorVulnerable: proposal not succeeded");
+        ProposalState currentState = state(proposalId);
+        require(
+            currentState == ProposalState.Succeeded || 
+            (currentState == ProposalState.Active && votingPeriod == 0), 
+            "GovernorVulnerable: proposal not executable"
+        );
 
         // VULN-6: CEI violated — state written AFTER external calls.
         // Safe version: _proposals[proposalId].executed = true; (move this line here)

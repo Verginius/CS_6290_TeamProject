@@ -1,21 +1,21 @@
 {
   "governance": {
-    "govToken": "0x103A3b128991781EE2c8db0454cA99d67b257923",
-    "governorBase": "0xB9d9e972100a1dD01cd441774b45b5821e136043",
-    "governorVulnerable": "0x707531c9999AaeF9232C8FEfBA31FBa4cB78d84a",
-    "governorWithDefenses": "0x2538a10b7fFb1B78c890c870FC152b10be121f04",
-    "timelock": "0xBbc18b580256A82dC0F9A86152b8B22E7C1C8005"
+    "govToken": "0x52173b6ac069619c206b9A0e75609fC92860AB2A",
+    "governorBase": "0x532802f2F9E0e3EE9d5Ba70C35E1F43C0498772D",
+    "governorVulnerable": "0xdB012DD3E3345e2f8D23c0F3cbCb2D94f430Be8C",
+    "governorWithDefenses": "0xd977422c9eE9B646f64A4C4389a6C98ad356d8C4",
+    "timelock": "0x40A633EeF249F21D95C8803b7144f19AAfeEF7ae"
   },
   "mocks": {
-    "flashLoanProvider": "0x24432a08869578aAf4d1eadA12e1e78f171b1a2b",
-    "mockToken": "0xbf2ad38fd09F37f50f723E35dd84EEa1C282c5C9",
-    "mockTreasury": "0xF66CfDf074D2FFD6A4037be3A669Ed04380Aef2B"
+    "flashLoanProvider": "0x1eB5C49630E08e95Ba7f139BcF4B9BA171C9a8C7",
+    "mockToken": "0xA9d0Fb5837f9c42c874e16da96094b14Af0e2784",
+    "mockTreasury": "0x6B21b3ae41f818Fc91e322b53f8D0773d31eCB75"
   },
   "attacks": {
-    "flashLoanAttack": "0x90b97E83e22AFa2e6A96b3549A0E495D5Bae61aF",
-    "whaleManipulation": "0xdb54fa574a3e8c6aC784e1a5cdB575A737622CFf",
-    "proposalSpam": "0xDDa0648FA8c9cD593416EC37089C2a2E6060B45c",
-    "quorumManipulation": "0xccA9728291bC98ff4F97EF57Be3466227b0eb06C",
-    "timelockExploit": "0xc6B407503dE64956Ad3cF5Ab112cA4f56AA13517"
+    "flashLoanAttack": "0xb830887eE23d3f9Ed8c27dbF7DcFe63037765475",
+    "whaleManipulation": "0x6f2E42BB4176e9A7352a8bF8886255Be9F3D2d13",
+    "proposalSpam": "0xA3f7BF5b0fa93176c260BBa57ceE85525De2BaF4",
+    "quorumManipulation": "0x25A1DF485cFBb93117f12fc673D87D1cddEb845a",
+    "timelockExploit": "0xD855cE0C298537ad5b5b96060Cf90e663696bbf6"
   }
 }

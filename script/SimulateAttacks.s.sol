@@ -91,7 +91,7 @@ contract SimulateAttacks is Script {
     ) internal {
         FlashLoanAttack attack = new FlashLoanAttack(flashLoanProvider, govToken, governor, mockTreasury);
         console.log("Executing attack...");
-        
+
         bool success = false;
         uint256 stolenAmount = 0;
         bool attackSucceeded = false;
@@ -102,7 +102,7 @@ contract SimulateAttacks is Script {
         } catch {
             console.log("Attack blocked by defenses (reverted)");
         }
-        
+
         console.log("Attack execution result: ", success);
         console.log("Stolen amount: ", stolenAmount);
         console.log("Attack succeeded: ", attackSucceeded);
@@ -154,12 +154,12 @@ contract SimulateAttacks is Script {
         } catch {
             console.log("Whale proposal blocked");
         }
-        
+
         console.log("Created whale proposal ID: ", proposalId);
 
         if (proposalId != 0) {
             // Move from Pending to Active.
-            vm.roll(block.number + gov.votingDelay() + 1);
+            if (gov.votingDelay() > 0) vm.roll(block.number + gov.votingDelay() + 1);
 
             // Whale votes directly on governor so voting weight is attributed correctly.
             try gov.castVote(proposalId, 1) returns (uint256 weight) {
@@ -169,7 +169,7 @@ contract SimulateAttacks is Script {
             }
 
             // Move beyond voting period so proposal can be evaluated/executed.
-            vm.roll(block.number + gov.votingPeriod() + 1);
+            if (gov.votingPeriod() > 0) vm.roll(block.number + gov.votingPeriod() + 1);
         }
 
         bool success = false;
@@ -225,7 +225,7 @@ contract SimulateAttacks is Script {
         console.log("[4] Quorum Manipulation");
         QuorumManipulation attack = new QuorumManipulation(govToken, governor, mockTreasury);
         console.log("Simulating low-participation window attack...");
-        
+
         uint256 proposalId = 0;
         bool succeeded = false;
         uint256 bypassed = 0;
@@ -236,7 +236,7 @@ contract SimulateAttacks is Script {
         } catch {
             console.log("Attack blocked by defenses (reverted)");
         }
-        
+
         console.log("Proposal ID created: ", proposalId);
         console.log("Attack succeeded: ", succeeded);
         console.log("Amount bypassed quorum: ", bypassed);
@@ -259,7 +259,7 @@ contract SimulateAttacks is Script {
         console.log("Identifying timelock vulnerabilities...");
         uint256 delay = attack.identifyTimelockVulnerabilities();
         console.log("Timelock delay identified: ", delay, " seconds");
-        
+
         bool success = false;
         bool succeeded = false;
         uint256 stolen = 0;

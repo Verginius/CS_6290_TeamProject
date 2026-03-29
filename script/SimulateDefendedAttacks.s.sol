@@ -101,7 +101,7 @@ contract SimulateDefendedAttacks is Script {
         } catch {
             console.log("Attack blocked by defenses (reverted)");
         }
-        
+
         console.log("Attack execution result: ", success);
         console.log("Stolen amount: ", stolenAmount);
         console.log("Attack succeeded: ", attackSucceeded);
@@ -158,7 +158,7 @@ contract SimulateDefendedAttacks is Script {
         if (proposalId != 0) {
             // Move from Pending to Active.
             uint256 delay = gov.votingDelay();
-            vm.roll(block.number + delay + 1);
+            if (delay > 0) vm.roll(block.number + delay + 1);
 
             // Whale votes directly on governor so voting weight is attributed correctly.
             try gov.castVote(proposalId, 1) returns (uint256 weight) {
@@ -166,10 +166,10 @@ contract SimulateDefendedAttacks is Script {
             } catch {
                 console.log("Whale vote blocked by defenses");
             }
-            
+
             // Move beyond voting period so proposal can be evaluated/executed.
             uint256 period = gov.votingPeriod();
-            vm.roll(block.number + period + 1);
+            if (period > 0) vm.roll(block.number + period + 1);
         }
 
         bool success = false;
@@ -178,7 +178,7 @@ contract SimulateDefendedAttacks is Script {
         } catch {
             console.log("Whale execution blocked by defenses");
         }
-        
+
         console.log("Attack execution result: ", success);
         uint256 stolenAmount = attack.getAmountStolen();
         bool succeeded = attack.wasAttackSuccessful();
@@ -236,7 +236,7 @@ contract SimulateDefendedAttacks is Script {
         } catch {
             console.log("Attack blocked by defenses (reverted)");
         }
-        
+
         console.log("Proposal ID created: ", proposalId);
         console.log("Attack succeeded: ", succeeded);
         console.log("Amount bypassed quorum: ", bypassed);
@@ -259,7 +259,7 @@ contract SimulateDefendedAttacks is Script {
         console.log("Identifying timelock vulnerabilities...");
         uint256 delay = attack.identifyTimelockVulnerabilities();
         console.log("Timelock delay identified: ", delay, " seconds");
-        
+
         bool success = false;
         bool succeeded = false;
         uint256 stolen = 0;

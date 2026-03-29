@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "1774791033",
+    "timestamp": "1774793110",
     "chainId": 31337,
     "totalAttacks": 5
   },
@@ -25,8 +25,8 @@
     },
     {
       "name": "Quorum Manipulation",
-      "succeeded": false,
-      "amountExtracted": "0",
+      "succeeded": true,
+      "amountExtracted": "1000000000000000000000000",
       "details": "Timed attack during low-participation window (5%)"
     },
     {
@@ -37,8 +37,8 @@
     }
   ],
   "summary": {
-    "totalSuccessful": 2,
-    "successRate": 40,
-    "totalExtracted": "100000000000000000000050"
+    "totalSuccessful": 3,
+    "successRate": 60,
+    "totalExtracted": "1100000000000000000000050"
   }
 }
