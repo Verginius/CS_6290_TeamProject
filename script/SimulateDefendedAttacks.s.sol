@@ -13,13 +13,13 @@ import {TimelockExploit} from "../src/attacks/TimelockExploit.sol";
 
 // Token and Contracts
 import {GovernanceToken} from "../src/governance/GovernanceToken.sol";
-import {GovernorVulnerable} from "../src/governance/GovernorVulnerable.sol";
+import {GovernorWithDefenses} from "../src/governance/GovernorWithDefenses.sol";
 
 /**
- * @title SimulateAttacks
+ * @title SimulateDefendedAttacks
  * @dev Foundry script to run all 5 attack simulations
  */
-contract SimulateAttacks is Script {
+contract SimulateDefendedAttacks is Script {
     // State
     struct AttackResult {
         string attackName;
@@ -36,7 +36,7 @@ contract SimulateAttacks is Script {
     uint256 private constant HALF_TREASURY = 5_000_000e18;
     uint256 private constant WHALE_ATTACK_DRAIN = 1_000_000e18;
     uint256 private constant WHALE_TOKENS_TARGET = 600_000_000e18;
-    string private constant RAW_OUTPUT_FILE = "./analysis/data/raw/attack_simulation_raw.json";
+    string private constant RAW_OUTPUT_FILE = "./analysis/data/raw/attack_simulation_defended_raw.json";
 
     // Main Simulation Function
     function run() external {
@@ -44,13 +44,13 @@ contract SimulateAttacks is Script {
         console.log("Starting attack simulations...");
 
         // Note: Intentionally NOT calling vm.startBroadcast() here.
-        // Defended/failed attacks will revert. If we start a broadcast, Foundry will
+        // Defended attacks will revert. If we start a broadcast, Foundry will
         // record the reverting transactions and fail the script at the end.
         // Running these purely in the script context avoids the issue.
 
         // Get contract addresses
         address govToken = vm.envAddress("GOV_TOKEN_ADDRESS");
-        address governor = vm.envAddress("GOVERNOR_VULNERABLE_ADDRESS");
+        address governor = vm.envAddress("GOVERNOR_DEFENSES_ADDRESS");
         address mockTreasury = vm.envAddress("MOCK_TREASURY_ADDRESS");
         address flashLoanProvider = vm.envAddress("FLASH_LOAN_PROVIDER_ADDRESS");
 
@@ -91,7 +91,6 @@ contract SimulateAttacks is Script {
     ) internal {
         FlashLoanAttack attack = new FlashLoanAttack(flashLoanProvider, govToken, governor, mockTreasury);
         console.log("Executing attack...");
-
         bool success = false;
         uint256 stolenAmount = 0;
         bool attackSucceeded = false;
@@ -120,7 +119,7 @@ contract SimulateAttacks is Script {
     function _simulateWhaleManipulation(address govToken, address governor, address mockTreasury) internal {
         console.log("[2] Whale Manipulation");
         WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
-        GovernorVulnerable gov = GovernorVulnerable(payable(governor));
+        GovernorWithDefenses gov = GovernorWithDefenses(payable(governor));
         address whale = msg.sender;
 
         GovernanceToken token = GovernanceToken(govToken);
@@ -152,32 +151,34 @@ contract SimulateAttacks is Script {
         try attack.createWhaleProposal(whale, WHALE_ATTACK_DRAIN) returns (uint256 id) {
             proposalId = id;
         } catch {
-            console.log("Whale proposal blocked");
+            console.log("Whale proposal blocked by defenses");
         }
-
         console.log("Created whale proposal ID: ", proposalId);
 
         if (proposalId != 0) {
             // Move from Pending to Active.
-            if (gov.votingDelay() > 0) vm.roll(block.number + gov.votingDelay() + 1);
+            uint256 delay = gov.votingDelay();
+            if (delay > 0) vm.roll(block.number + delay + 1);
 
             // Whale votes directly on governor so voting weight is attributed correctly.
             try gov.castVote(proposalId, 1) returns (uint256 weight) {
                 console.log("Whale vote weight: ", weight);
             } catch {
-                console.log("Whale vote blocked by governor rules");
+                console.log("Whale vote blocked by defenses");
             }
 
             // Move beyond voting period so proposal can be evaluated/executed.
-            if (gov.votingPeriod() > 0) vm.roll(block.number + gov.votingPeriod() + 1);
+            uint256 period = gov.votingPeriod();
+            if (period > 0) vm.roll(block.number + period + 1);
         }
 
         bool success = false;
         try attack.executeAfterWhaleVote(proposalId) returns (bool res) {
             success = res;
         } catch {
-            console.log("Whale execution blocked");
+            console.log("Whale execution blocked by defenses");
         }
+
         console.log("Attack execution result: ", success);
         uint256 stolenAmount = attack.getAmountStolen();
         bool succeeded = attack.wasAttackSuccessful();
@@ -225,7 +226,6 @@ contract SimulateAttacks is Script {
         console.log("[4] Quorum Manipulation");
         QuorumManipulation attack = new QuorumManipulation(govToken, governor, mockTreasury);
         console.log("Simulating low-participation window attack...");
-
         uint256 proposalId = 0;
         bool succeeded = false;
         uint256 bypassed = 0;
@@ -417,3 +417,4 @@ contract SimulateAttacks is Script {
         return results;
     }
 }
+
