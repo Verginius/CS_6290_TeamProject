@@ -259,6 +259,27 @@ analysis/data/processed/attack_simulation_results.json
 
 ## Complete Workflow Example
 
+### One-Command Pipeline (PowerShell)
+
+For Windows users, you can run the full workflow (Deploy -> SetupScenarios -> SimulateAttacks -> ExportData) with one command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\script\Run-AllScripts.ps1
+```
+
+Optional parameters:
+
+```powershell
+# Use scenario D on localhost
+powershell -ExecutionPolicy Bypass -File .\script\Run-AllScripts.ps1 -Scenario D
+
+# Use custom RPC and key
+powershell -ExecutionPolicy Bypass -File .\script\Run-AllScripts.ps1 -RpcUrl "http://localhost:8545" -PrivateKey "<your_private_key>"
+
+# Preview commands without executing forge
+powershell -ExecutionPolicy Bypass -File .\script\Run-AllScripts.ps1 -DryRun
+```
+
 ### Step 1: Start Local Fork
 ```bash
 # Terminal 1: Start Anvil fork

@@ -51,7 +51,7 @@ Each attack is countered by a corresponding defense mechanism, enabling side-by-
 │   │   ├── GovernanceMath.sol       — Quorum/voting math, BPS arithmetic, HHI/Gini
 │   │   ├── VotingPower.sol          — Snapshot-safe vote weight & threshold helpers
 │   │   └── ProposalLib.sol          — Proposal ID hashing, array validation, lifecycle
-│   ├── attacks/             # Attack simulation contracts (in development)
+│   ├── attacks/             # Attack simulation contracts (implemented)
 │   ├── defenses/            # Standalone defense mechanism contracts (in development)
 │   └── mocks/               # Mock contracts for testing
 ├── test/
@@ -231,7 +231,7 @@ Exposes `IVotesView` (ERC-5805 subset) and wraps every token query so governance
 
 ## Attack Contracts
 
-`src/attacks/` is reserved for attack simulation contracts (in development by Student 2). Planned contracts:
+`src/attacks/` contains implemented attack simulation contracts by Student 2:
 
 | Contract | Attack Type |
 |----------|------------|
@@ -240,6 +240,8 @@ Exposes `IVotesView` (ERC-5805 subset) and wraps every token query so governance
 | `ProposalSpam.sol` | High-volume proposal flooding |
 | `QuorumManipulation.sol` | Sybil / low-turnout quorum bypass |
 | `TimelockExploit.sol` | Race-condition exploit of timelock window |
+
+Local validation status (2026-03-29): all Student 2 attack-related suites passed (78/78).
 
 ---
 
@@ -252,6 +254,11 @@ All tests use Foundry (`forge test`).
 | `GovernorBase.t.sol` | OZ governor — voting, quorum, timelock integration |
 | `GovernorVulnerable.t.sol` | Proves each vulnerability is exploitable |
 | `GovernorWithDefenses.t.sol` | Proves each fix blocks the corresponding attack |
+| `FlashLoanAttack.t.sol` | Flash-loan attack path and repayment behavior |
+| `WhaleManipulation.t.sol` | Whale dominance and treasury-drain scenarios |
+| `ProposalSpam.t.sol` | Proposal flooding and visibility/fatigue scenarios |
+| `QuorumManipulation.t.sol` | Zero-quorum, low-turnout, and sybil-style scenarios |
+| `TimelockExploit.t.sol` | Timelock bypass and related exploit scenarios |
 
 Key test scenarios in `GovernorWithDefenses.t.sol`:
 
