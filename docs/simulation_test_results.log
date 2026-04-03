@@ -1,0 +1,26 @@
+=== Initializing Volume-Based Defense Mechanism ===
+
+=== Running Simulation ===
+
+Scenario: Normal Retail Buy
+[Tx 0x1A] Processing 1,000 COMP...
+  -> ✅ Passed. Normal volume detected.
+
+Scenario: Whale Swap (from M2 baseline)
+[Tx 0x2B] Processing 10,000 COMP...
+  -> ✅ Passed. Normal volume detected.
+
+Scenario: M1 Simulated Quorum Flash Loan
+[Tx 0x3C] Processing 400,000 COMP...
+  -> 🚨 ALARM! Circuit Breaker Triggered. Flash loan attack suspected.
+  -> ⛔ ACTION BLOCKED: Governance proposal reverted.
+
+Scenario: Partial Attack Attempt
+[Tx 0x4D] Processing 150,000 COMP...
+  -> 🚨 ALARM! Circuit Breaker Triggered. Flash loan attack suspected.
+  -> ⛔ ACTION BLOCKED: Governance proposal reverted.
+
+=== Validation Summary ===
+Threshold Set: 50,000 COMP
+Transactions Blocked: 2
+Transactions Passed: 2
