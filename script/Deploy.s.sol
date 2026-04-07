@@ -56,6 +56,12 @@ contract Deploy is Script {
     address public deployedQuorumManipulation;
     address public deployedTimelockExploit;
 
+    address public deployedFlashLoanAttackDefense;
+    address public deployedWhaleManipulationDefense;
+    address public deployedProposalSpamDefense;
+    address public deployedQuorumManipulationDefense;
+    address public deployedTimelockExploitDefense;
+
     // ─────────────────────────────────────────────────────────────────────────
     // Configuration
     // ─────────────────────────────────────────────────────────────────────────
@@ -250,6 +256,41 @@ contract Deploy is Script {
             new TimelockExploit(deployedGovernorVulnerable, deployedTimelock, deployedMockTreasury);
         deployedTimelockExploit = address(timelockExploit);
         console.log("TimelockExploit deployed at:", deployedTimelockExploit);
+
+        // Deploy Flash Loan Attack (Defense version)
+        console.log("Deploying FlashLoanAttackDefense...");
+        FlashLoanAttack flashLoanAttackDefense = new FlashLoanAttack(
+            deployedFlashLoanProvider, deployedGovToken, deployedGovernorWithDefenses, deployedMockTreasury
+        );
+        deployedFlashLoanAttackDefense = address(flashLoanAttackDefense);
+        console.log("FlashLoanAttackDefense deployed at:", deployedFlashLoanAttackDefense);
+
+        // Deploy Whale Manipulation Attack (Defense version)
+        console.log("Deploying WhaleManipulationDefense...");
+        WhaleManipulation whaleManipulationDefense =
+            new WhaleManipulation(deployedGovToken, deployedGovernorWithDefenses, deployedMockTreasury);
+        deployedWhaleManipulationDefense = address(whaleManipulationDefense);
+        console.log("WhaleManipulationDefense deployed at:", deployedWhaleManipulationDefense);
+
+        // Deploy Proposal Spam Attack (Defense version)
+        console.log("Deploying ProposalSpamDefense...");
+        ProposalSpam proposalSpamDefense = new ProposalSpam(deployedGovernorWithDefenses);
+        deployedProposalSpamDefense = address(proposalSpamDefense);
+        console.log("ProposalSpamDefense deployed at:", deployedProposalSpamDefense);
+
+        // Deploy Quorum Manipulation Attack (Defense version)
+        console.log("Deploying QuorumManipulationDefense...");
+        QuorumManipulation quorumManipulationDefense =
+            new QuorumManipulation(deployedGovToken, deployedGovernorWithDefenses, deployedMockTreasury);
+        deployedQuorumManipulationDefense = address(quorumManipulationDefense);
+        console.log("QuorumManipulationDefense deployed at:", deployedQuorumManipulationDefense);
+
+        // Deploy Timelock Exploit Attack (Defense version)
+        console.log("Deploying TimelockExploitDefense...");
+        TimelockExploit timelockExploitDefense =
+            new TimelockExploit(deployedGovernorWithDefenses, deployedTimelock, deployedMockTreasury);
+        deployedTimelockExploitDefense = address(timelockExploitDefense);
+        console.log("TimelockExploitDefense deployed at:", deployedTimelockExploitDefense);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -278,6 +319,13 @@ contract Deploy is Script {
         console.log("  ProposalSpam:           ", deployedProposalSpam);
         console.log("  QuorumManipulation:     ", deployedQuorumManipulation);
         console.log("  TimelockExploit:        ", deployedTimelockExploit);
+
+        console.log("\nATTACK CONTRACTS (Defense versions):");
+        console.log("  FlashLoanAttackDefense:     ", deployedFlashLoanAttackDefense);
+        console.log("  WhaleManipulationDefense:   ", deployedWhaleManipulationDefense);
+        console.log("  ProposalSpamDefense:        ", deployedProposalSpamDefense);
+        console.log("  QuorumManipulationDefense:  ", deployedQuorumManipulationDefense);
+        console.log("  TimelockExploitDefense:     ", deployedTimelockExploitDefense);
 
         console.log("\nAll contracts deployed successfully!");
         console.log("===================================================================\n");
@@ -330,6 +378,21 @@ contract Deploy is Script {
                 '",\n',
                 '    "timelockExploit": "',
                 vm.toString(deployedTimelockExploit),
+                '",\n',
+                '    "flashLoanAttackDefense": "',
+                vm.toString(deployedFlashLoanAttackDefense),
+                '",\n',
+                '    "whaleManipulationDefense": "',
+                vm.toString(deployedWhaleManipulationDefense),
+                '",\n',
+                '    "proposalSpamDefense": "',
+                vm.toString(deployedProposalSpamDefense),
+                '",\n',
+                '    "quorumManipulationDefense": "',
+                vm.toString(deployedQuorumManipulationDefense),
+                '",\n',
+                '    "timelockExploitDefense": "',
+                vm.toString(deployedTimelockExploitDefense),
                 '"\n',
                 "  }\n",
                 "}\n"

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "1775558291",
+    "timestamp": "1775556409",
     "chainId": 31337,
     "totalAttacks": 5
   },
@@ -15,13 +15,13 @@
       "name": "Whale Manipulation",
       "succeeded": false,
       "amountExtracted": "0",
-      "details": "Skipped: sender has no governance tokens"
+      "details": "Whale directly voted then executed self-serving proposal"
     },
     {
       "name": "Proposal Spam",
-      "succeeded": true,
-      "amountExtracted": "50",
-      "details": "Created 50 spam proposals"
+      "succeeded": false,
+      "amountExtracted": "0",
+      "details": "Created 0 spam proposals"
     },
     {
       "name": "Quorum Manipulation",
@@ -37,8 +37,8 @@
     }
   ],
   "summary": {
-    "totalSuccessful": 2,
-    "successRate": 40,
-    "totalExtracted": "100000000000000000000050"
+    "totalSuccessful": 1,
+    "successRate": 20,
+    "totalExtracted": "100000000000000000000000"
   }
 }

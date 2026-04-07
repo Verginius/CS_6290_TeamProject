@@ -49,13 +49,88 @@
 // };
 
 // src/hooks/useProposalsSummary.ts
-import { useState, useEffect } from 'react';
+// import { useState, useEffect } from 'react';
 
-export const useProposalsSummary = (mode: 'vulnerable' | 'defense' = 'vulnerable') => {
-  const [active, setActive] = useState(2);
-  const [voting, setVoting] = useState(1);
-  const [loading, setLoading] = useState(false);
+// export const useProposalsSummary = (mode: 'vulnerable' | 'defense' = 'vulnerable') => {
+//   const [active, setActive] = useState(2);
+//   const [voting, setVoting] = useState(1);
+//   const [loading, setLoading] = useState(false);
 
-  // TODO: 后续替换为真实合约调用或后端 API
+//   // TODO: 后续替换为真实合约调用或后端 API
+//   return { active, voting, loading };
+// };
+
+import { useEffect, useState } from 'react';
+import { provider, getGovernorContract } from '../lib/web3';
+
+export const useProposalsSummary = (
+  mode: 'vulnerable' | 'defense' = 'vulnerable'
+) => {
+
+  const [active, setActive] = useState(0);
+  const [voting, setVoting] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+
+    const fetchProposals = async () => {
+
+      try {
+
+        const governor = getGovernorContract(mode);
+        const governorAddress = await governor.getAddress();
+
+        const latestBlock = await provider.getBlockNumber();
+
+        const logs = await provider.getLogs({
+          address: governorAddress,
+          fromBlock: 0,
+          toBlock: latestBlock
+        });
+
+        let activeCount = 0;
+        let votingCount = 0;
+
+        for (const log of logs) {
+
+          try {
+
+            const parsed = governor.interface.parseLog(log);
+
+            if (parsed?.name === "ProposalCreated") {
+
+              const proposalId = parsed.args.proposalId;
+
+              const state = await governor.state(proposalId);
+
+              if (state === 1n) votingCount++;
+              if (state === 0n || state === 1n) activeCount++;
+
+            }
+
+          } catch {}
+
+        }
+
+        setActive(activeCount);
+        setVoting(votingCount);
+
+      } catch (err) {
+
+        console.error('Failed to fetch proposals', err);
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+    fetchProposals();
+
+  }, [mode]);
+
   return { active, voting, loading };
+
 };

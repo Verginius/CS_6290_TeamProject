@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "1775558291",
+    "timestamp": "1775556409",
     "chainId": 31337,
     "totalAttacks": 5
   },
@@ -15,7 +15,7 @@
       "name": "Whale Manipulation",
       "succeeded": false,
       "amountExtracted": "0",
-      "details": "Skipped: sender has no governance tokens"
+      "details": "Whale directly voted then executed self-serving proposal"
     },
     {
       "name": "Proposal Spam",

@@ -31,35 +31,84 @@
 // };
 
 // src/hooks/useDefenseStatus.ts
+// import { useEffect, useState } from 'react';
+// import { getGovernorContract } from '../lib/web3';
+
+// export const useDefenseStatus = () => {
+//   const [timelockEnabled, setTimelockEnabled] = useState(false);
+//   const [quorum, setQuorum] = useState<number>(0);
+//   const [emergencyReady, setEmergencyReady] = useState(false);
+//   const [loading, setLoading] = useState(true);
+
+//   useEffect(() => {
+//     const fetchDefense = async () => {
+//       try {
+//         const contract = getGovernorContract('defense');
+//         // 获取时间锁延迟（秒），>0 表示启用
+//         const delay = await contract.timelockDelay();
+//         setTimelockEnabled(delay > 0);
+//         // 获取法定人数分子（如 4 表示 4%）
+//         const numerator = await contract.quorumNumerator();
+//         setQuorum(Number(numerator));
+//         // 紧急暂停状态暂未部署，设为 false
+//         setEmergencyReady(false);
+//       } catch (err) {
+//         console.error('Failed to fetch defense status', err);
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+//     fetchDefense();
+//   }, []);
+
+//   return { timelockEnabled, quorum, emergencyReady, loading };
+// };
+
 import { useEffect, useState } from 'react';
-import { getGovernorContract } from '../lib/web3';
+import { getTimelockContract } from '../lib/web3';
 
 export const useDefenseStatus = () => {
+
   const [timelockEnabled, setTimelockEnabled] = useState(false);
-  const [quorum, setQuorum] = useState<number>(0);
+  const [quorum, setQuorum] = useState<number>(4); // 默认4%
   const [emergencyReady, setEmergencyReady] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+
     const fetchDefense = async () => {
+
       try {
-        const contract = getGovernorContract('defense');
-        // 获取时间锁延迟（秒），>0 表示启用
-        const delay = await contract.timelockDelay();
-        setTimelockEnabled(delay > 0);
-        // 获取法定人数分子（如 4 表示 4%）
-        const numerator = await contract.quorumNumerator();
-        setQuorum(Number(numerator));
-        // 紧急暂停状态暂未部署，设为 false
+
+        const timelock = getTimelockContract();
+
+        // timelock delay
+        const delay = await timelock.getMinDelay();
+
+        setTimelockEnabled(delay > 0n);
+
+        // quorum (固定治理参数)
+        setQuorum(4);
+
+        // emergency pause (未来扩展)
         setEmergencyReady(false);
+
       } catch (err) {
+
         console.error('Failed to fetch defense status', err);
+
       } finally {
+
         setLoading(false);
+
       }
+
     };
+
     fetchDefense();
+
   }, []);
 
   return { timelockEnabled, quorum, emergencyReady, loading };
+
 };
