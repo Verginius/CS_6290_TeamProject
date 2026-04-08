@@ -141,7 +141,7 @@ contract SimulateDefendedAttacks is Script, StdCheats {
         token.selfDelegate();
         vm.roll(block.number + 1);
 
-        uint256 whaleFunding = WHALE_TOKENS_TARGET;
+        // uint256 whaleFunding = WHALE_TOKENS_TARGET;
         console.log("Created whale with voting power: ", token.getVotes(whale));
 
         uint256 proposalId = 0;
