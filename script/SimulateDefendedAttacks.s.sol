@@ -96,7 +96,7 @@ contract SimulateDefendedAttacks is Script, StdCheats {
         address flashLoanProvider
     ) internal {
         FlashLoanAttack attack = new FlashLoanAttack(flashLoanProvider, govToken, governor, mockTreasury);
-        
+
         // Fund the attack contract with fee amount so it can repay the flash loan
         uint256 fee = attack.getAttackCost(FLASH_LOAN_AMOUNT);
         deal(govToken, address(attack), fee);
@@ -132,11 +132,13 @@ contract SimulateDefendedAttacks is Script, StdCheats {
         GovernorWithDefenses gov = GovernorWithDefenses(payable(governor));
         address whale = msg.sender;
 
-        GovernanceToken token = GovernanceToken(govToken); deal(govToken, whale, 500_000_000e18); console.log("Selected whale attacker:", whale);
+        GovernanceToken token = GovernanceToken(govToken);
+        deal(govToken, whale, 500_000_000e18);
+        console.log("Selected whale attacker:", whale);
 
         vm.startPrank(whale);
         WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
-        
+
         // Force delegate for the whale to ensure voting power is active
         token.selfDelegate();
         vm.roll(block.number + 1);
@@ -432,8 +434,4 @@ contract SimulateDefendedAttacks is Script, StdCheats {
         return results;
     }
 }
-
-
-
-
 

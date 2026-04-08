@@ -91,7 +91,7 @@ contract SimulateAttacks is Script, StdCheats {
         address flashLoanProvider
     ) internal {
         FlashLoanAttack attack = new FlashLoanAttack(flashLoanProvider, govToken, governor, mockTreasury);
-        
+
         // Fund the attack contract with fee amount so it can repay the flash loan
         uint256 fee = attack.getAttackCost(FLASH_LOAN_AMOUNT);
         deal(govToken, address(attack), fee);
@@ -128,11 +128,13 @@ contract SimulateAttacks is Script, StdCheats {
         GovernorVulnerable gov = GovernorVulnerable(payable(governor));
         address whale = msg.sender;
 
-        GovernanceToken token = GovernanceToken(govToken); deal(govToken, whale, 500_000_000e18); console.log("Selected whale attacker:", whale);
+        GovernanceToken token = GovernanceToken(govToken);
+        deal(govToken, whale, 500_000_000e18);
+        console.log("Selected whale attacker:", whale);
 
         vm.startPrank(whale);
         WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
-        
+
         // Ensure delegates are set to themselves
         token.selfDelegate();
         vm.roll(block.number + 1);
@@ -254,7 +256,7 @@ contract SimulateAttacks is Script, StdCheats {
         console.log("[5] Timelock Exploit");
         address timelock =
             vm.envExists("TIMELOCK_ADDRESS") ? vm.envAddress("TIMELOCK_ADDRESS") : vm.envAddress("TIMELOCK");
-            
+
         if (timelock == address(0)) {
             console.log("No timelock configured, skipping attack.");
             results.push(
@@ -430,7 +432,4 @@ contract SimulateAttacks is Script, StdCheats {
         return results;
     }
 }
-
-
-
 

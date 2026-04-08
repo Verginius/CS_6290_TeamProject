@@ -305,10 +305,14 @@ contract SetupScenarios is Script, StdCheats {
             // Must use deal to arbitrarily give the provider tokens instead of spending the finite deployment supply
             GovernanceToken token = GovernanceToken(deployedContracts.govToken);
             uint256 providerBalance = 250_000_000e18; // 500M tokens
-            
+
             // We use vm.startBroadcast already, so we must suspend it to use deal on non-test tokens
-            uint256 balanceToTransfer = token.balanceOf(msg.sender) > providerBalance ? providerBalance : token.balanceOf(msg.sender); token.transfer(flashLoanProvider, balanceToTransfer);
-            console.log("PASS: Flash Loan Provider funded dynamically with:", providerBalance / 1e18, "tokens via deal()");
+            uint256 balanceToTransfer =
+                token.balanceOf(msg.sender) > providerBalance ? providerBalance : token.balanceOf(msg.sender);
+            token.transfer(flashLoanProvider, balanceToTransfer);
+            console.log(
+                "PASS: Flash Loan Provider funded dynamically with:", providerBalance / 1e18, "tokens via deal()"
+            );
         }
     }
 
@@ -399,7 +403,4 @@ contract SetupScenarios is Script, StdCheats {
         return selectedScenario;
     }
 }
-
-
-
 
