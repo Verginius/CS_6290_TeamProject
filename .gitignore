@@ -38,3 +38,7 @@ pnpm-debug.log*
 
 # OS
 .DS_Store
+
+# forge-ignored
+forge_sim.log
+last_sim_out.txt

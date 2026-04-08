@@ -284,6 +284,7 @@ contract Deploy is Script {
     }
 
     function _writeDeploymentArtifacts() internal {
+        /*
         string memory json = string(
             abi.encodePacked(
                 "{\n",
@@ -338,6 +339,7 @@ contract Deploy is Script {
 
         // forge-lint: disable-next-line(unsafe-cheatcode)
         // vm.writeFile(DEPLOYMENT_JSON_FILE, json);
+        */
 
         string memory envFile = string(
             abi.encodePacked(
@@ -367,10 +369,10 @@ contract Deploy is Script {
         );
 
         // forge-lint: disable-next-line(unsafe-cheatcode)
-        // vm.writeFile(SIM_ENV_FILE, envFile);
+        vm.writeFile(SIM_ENV_FILE, envFile);
 
         // console.log("Deployment address manifest written to:", DEPLOYMENT_JSON_FILE);
-        // console.log("Simulation env file written to:", SIM_ENV_FILE);
+        console.log("Simulation env file written to:", SIM_ENV_FILE);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,7 @@
+{
+    "scenario": "attack_simulation_defended_raw",
+    "target_dao": "Compound Finance",
+    "governance_token": "COMP",
+    "technical_framework": "Governor Bravo",
+    "attacks": []
+}
