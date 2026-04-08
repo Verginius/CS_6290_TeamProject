@@ -41,4 +41,13 @@ pnpm-debug.log*
 
 # forge-ignored
 forge_sim.log
+anvil.log
+final_run.log
+final_success.log
+results.log
+flash_loan_trace.txt
 last_sim_out.txt
+coverage_output.txt
+run_trace.txt
+sim_trace.txt
+sim_vvvv.txt

@@ -1,20 +1,20 @@
 {
   "metadata": {
-    "timestamp": "1776512500",
+    "timestamp": "1776524208",
     "chainId": 31337,
     "totalAttacks": 5
   },
   "attacks": [
     {
       "name": "Flash Loan Attack",
-      "succeeded": false,
-      "amountExtracted": "0",
+      "succeeded": true,
+      "amountExtracted": "5000000000000000000000000",
       "details": "Borrowed tokens, voted, executed proposal"
     },
     {
       "name": "Whale Manipulation",
-      "succeeded": false,
-      "amountExtracted": "0",
+      "succeeded": true,
+      "amountExtracted": "1000000000000000000000000",
       "details": "Whale directly voted then executed self-serving proposal"
     },
     {
@@ -37,8 +37,8 @@
     }
   ],
   "summary": {
-    "totalSuccessful": 2,
-    "successRate": 40,
-    "totalExtracted": "1000000000000000000000050"
+    "totalSuccessful": 4,
+    "successRate": 80,
+    "totalExtracted": "7000000000000000000000050"
   }
 }

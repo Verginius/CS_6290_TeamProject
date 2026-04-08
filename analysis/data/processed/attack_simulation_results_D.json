@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "1776512767",
+    "timestamp": "1776524403",
     "chainId": 31337,
     "totalAttacks": 5
   },
@@ -31,14 +31,14 @@
     },
     {
       "name": "Timelock Exploit",
-      "succeeded": false,
-      "amountExtracted": "0",
+      "succeeded": true,
+      "amountExtracted": "100000000000000000000000",
       "details": "Attempted emergency function bypass"
     }
   ],
   "summary": {
-    "totalSuccessful": 2,
-    "successRate": 40,
-    "totalExtracted": "1000000000000000000000050"
+    "totalSuccessful": 3,
+    "successRate": 60,
+    "totalExtracted": "1100000000000000000000050"
   }
 }

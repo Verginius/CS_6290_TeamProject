@@ -197,7 +197,7 @@ try {
 
         $rawSimVuln = "analysis/data/raw/attack_simulation_raw_$scen.json"
         
-        $outVuln = Invoke-ForgeScript -Label "3/6 Simulate Attacks [Vulnerable]" -ScriptTarget "script/SimulateAttacks.s.sol:SimulateAttacks" -Broadcast:($useBroadcast -and $BroadcastSimulations) -PassThru
+        $outVuln = Invoke-ForgeScript -Label "3/6 Simulate Attacks [Vulnerable]" -ScriptTarget "script/SimulateAttacks.s.sol:SimulateAttacks" -Broadcast:($useBroadcast -and $BroadcastSimulations) -PassThru -ExtraArgs @("-vvvv")
         if ($outVuln) { $outVuln | Out-File $rawSimVuln }
         
         $rawSimDef = "analysis/data/raw/attack_simulation_defended_raw_$scen.json"

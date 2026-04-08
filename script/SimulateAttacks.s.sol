@@ -33,7 +33,7 @@ contract SimulateAttacks is Script, StdCheats {
 
     // Configuration
     address public constant DEPLOYER = address(0x1);
-    uint256 private constant FLASH_LOAN_AMOUNT = 500_000_000e18;
+    uint256 private constant FLASH_LOAN_AMOUNT = 250_000_000e18;
     uint256 private constant HALF_TREASURY = 5_000_000e18;
     uint256 private constant WHALE_ATTACK_DRAIN = 1_000_000e18;
     uint256 private constant WHALE_TOKENS_TARGET = 600_000_000e18;
@@ -128,11 +128,7 @@ contract SimulateAttacks is Script, StdCheats {
         GovernorVulnerable gov = GovernorVulnerable(payable(governor));
         address whale = msg.sender;
 
-        GovernanceToken token = GovernanceToken(govToken);
-        
-        deal(govToken, whale, 500_000_000e18);
-
-        console.log("Selected whale attacker:", whale);
+        GovernanceToken token = GovernanceToken(govToken); deal(govToken, whale, 500_000_000e18); console.log("Selected whale attacker:", whale);
 
         vm.startPrank(whale);
         WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
@@ -280,7 +276,7 @@ contract SimulateAttacks is Script, StdCheats {
         bool success = false;
         bool succeeded = false;
         uint256 stolen = 0;
-        try attack.executeEmergencyFunctionBypass("emergencyWithdraw", 100_000e18) returns (bool res) {
+        try attack.executeEmergencyFunctionBypass("emergencyWithdraw()", 100_000e18) returns (bool res) {
             success = res;
             succeeded = attack.wasAttackSuccessful();
             stolen = attack.getAmountStolen();
@@ -434,3 +430,7 @@ contract SimulateAttacks is Script, StdCheats {
         return results;
     }
 }
+
+
+
+
