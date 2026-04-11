@@ -31,8 +31,7 @@
 export interface AttackSuccessRateRow {
   attackType: string;
   noDefense: number;
-  basicDefense: number;
-  enhancedDefense: number;
+  defense: number | null; 
 }
 
 export interface CostBenefitItem {

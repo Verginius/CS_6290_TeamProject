@@ -15,7 +15,7 @@
       "name": "Whale Manipulation",
       "succeeded": false,
       "amountExtracted": "0",
-      "details": "Whale directly voted then executed self-serving proposal"
+      "details": "Skipped: sender has no governance tokens"
     },
     {
       "name": "Proposal Spam",

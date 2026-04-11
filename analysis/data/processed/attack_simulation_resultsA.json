@@ -25,8 +25,8 @@
     },
     {
       "name": "Quorum Manipulation",
-      "succeeded": true,
-      "amountExtracted": "1000000000000000000000000",
+      "succeeded": false,
+      "amountExtracted": "0",
       "details": "Timed attack during low-participation window (5%)"
     },
     {
