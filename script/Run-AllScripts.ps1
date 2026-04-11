@@ -165,8 +165,8 @@ Write-Host "Dry run      : $DryRun"
 $anvilProcess = $null
 if ($useBroadcast -and ($RpcUrl -match "localhost" -or $RpcUrl -match "127.0.0.1")) {
     Write-Host "Starting local anvil node..." -ForegroundColor Yellow
-    $anvilProcess = Start-Process $script:AnvilExecutable -PassThru -WindowStyle Hidden
-    Start-Sleep -Seconds 3 # Wait for anvil to initialize
+    $anvilProcess = Start-Process $script:AnvilExecutable -PassThru
+    Start-Sleep -Seconds 10 # Wait for anvil to initialize
 }
 
 try {
@@ -198,12 +198,12 @@ try {
         $rawSimVuln = "analysis/data/raw/attack_simulation_raw_$scen.json"
         
         $outVuln = Invoke-ForgeScript -Label "3/6 Simulate Attacks [Vulnerable]" -ScriptTarget "script/SimulateAttacks.s.sol:SimulateAttacks" -Broadcast:($useBroadcast -and $BroadcastSimulations) -PassThru -ExtraArgs @("-vvvv")
-        if ($outVuln) { $outVuln | Out-File $rawSimVuln }
+        if ($outVuln) { $outVuln -join "`n" | Set-Content $rawSimVuln -Encoding UTF8 }
         
         $rawSimDef = "analysis/data/raw/attack_simulation_defended_raw_$scen.json"
         
         $outDef = Invoke-ForgeScript -Label "4/6 Simulate Attacks [With Defenses]" -ScriptTarget "script/SimulateDefendedAttacks.s.sol:SimulateDefendedAttacks" -Broadcast:($useBroadcast -and $BroadcastSimulations) -PassThru
-        if ($outDef) { $outDef | Out-File $rawSimDef }
+        if ($outDef) { $outDef -join "`n" | Set-Content $rawSimDef -Encoding UTF8 }
         
         Invoke-ForgeScript -Label "5/6 Export Processed Data [Vulnerable]" -ScriptTarget "script/ExportData.s.sol:ExportData"
         Invoke-ForgeScript -Label "6/6 Export Processed Data [With Defenses]" -ScriptTarget "script/ExportDefendedData.s.sol:ExportDefendedData"
@@ -217,9 +217,14 @@ try {
     Write-Host "Extracting insights per Target Selection Document..." -ForegroundColor Yellow
     python .\analysis\scripts\extract_metrics.py
 
+    Write-Host "Generating visualizations and analysis reports based on Analysis_Metrics.md..." -ForegroundColor Yellow
+    python .\analysis\scripts\visualize_metrics.py
+
     Write-Host ""
     Write-Host "All scenarios completed successfully." -ForegroundColor Green
     Write-Host "Outputs saved with suffix _A.json, _B.json, etc in analysis/data/processed/"
+    Write-Host "Metrics visualizations saved to analysis/plots/" -ForegroundColor Cyan
+    Write-Host "Analysis report generated at docs/Analysis_Report.md" -ForegroundColor Cyan
 }
 finally {
     if ($null -ne $anvilProcess) {
