@@ -292,6 +292,8 @@ import { useAttackEvents } from '../../hooks/useAttackEvents';
 import { useRiskScore } from '../../hooks/useRiskScore';
 import { useHeatmapData } from '../../hooks/useHeatmapData';
 import { useDefenseStatus } from '../../hooks/useDefenseStatus';
+import { useRecentAttacks } from '../../hooks/useRecentAttacks';
+
 // import { ethers } from 'ethers';
 // const provider = new ethers.JsonRpcProvider('http://127.0.0.1:8545');
 // const signer = new ethers.Wallet('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80', provider);
@@ -329,6 +331,7 @@ export function Overview() {
   const { score: riskScore, level: riskLevel, loading: riskLoading } = useRiskScore();
   const { data: heatmapData, loading: heatmapLoading } = useHeatmapData();
   const { timelockEnabled, quorum, emergencyReady, loading: defenseLoading } = useDefenseStatus();
+  const attacks  = useRecentAttacks();
 
   // 辅助函数
   const getRiskColor = (level: string) => {
@@ -518,7 +521,15 @@ export function Overview() {
             Recent Simulations
           </h3>
           <div className="space-y-3">
-            <div className="p-3 bg-secondary/30 rounded-lg border border-border">
+            {attacks.map((a, i) => (
+              <div key={i} className="p-3 bg-secondary/30 rounded-lg border border-border">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm">{i+1}. {a.name}</span>
+                  <span className="text-xs text-primary">Block {a.block}</span>
+                </div>
+              </div>
+            ))}
+            {/* <div className="p-3 bg-secondary/30 rounded-lg border border-border">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm">1. Flash Loan Attack</span>
                 <span className="text-xs text-success">92%</span>
@@ -531,7 +542,7 @@ export function Overview() {
                 <span className="text-xs text-warning">45%</span>
               </div>
               <div className="text-xs text-muted-foreground">Success Rate: 45%</div>
-            </div>
+            </div> */}
           </div>
         </div>
 
