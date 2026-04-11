@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Script} from "forge-std/Script.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 import {console} from "forge-std/console.sol";
 
 // Attack Contracts
@@ -19,7 +20,7 @@ import {GovernorWithDefenses} from "../src/governance/GovernorWithDefenses.sol";
  * @title SimulateDefendedAttacks
  * @dev Foundry script to run all 5 attack simulations
  */
-contract SimulateDefendedAttacks is Script {
+contract SimulateDefendedAttacks is Script, StdCheats {
     // State
     struct AttackResult {
         string attackName;
@@ -32,7 +33,7 @@ contract SimulateDefendedAttacks is Script {
 
     // Configuration
     address public constant DEPLOYER = address(0x1);
-    uint256 private constant FLASH_LOAN_AMOUNT = 500_000_000e18;
+    uint256 private constant FLASH_LOAN_AMOUNT = 250_000_000e18;
     uint256 private constant HALF_TREASURY = 5_000_000e18;
     uint256 private constant WHALE_ATTACK_DRAIN = 1_000_000e18;
     uint256 private constant WHALE_TOKENS_TARGET = 600_000_000e18;
@@ -59,6 +60,11 @@ contract SimulateDefendedAttacks is Script {
         console.log("  Governor: ", governor);
         console.log("  Mock Treasury: ", mockTreasury);
         console.log("  Flash Loan Provider: ", flashLoanProvider);
+
+        if (governor == address(0)) {
+            console.log("Skipping Defended Attack Simulations: Governor address is 0 (likely Scenario A)");
+            return;
+        }
 
         // Simulate each attack
         _simulateFlashLoanAttack(govToken, governor, mockTreasury, flashLoanProvider);
@@ -90,6 +96,11 @@ contract SimulateDefendedAttacks is Script {
         address flashLoanProvider
     ) internal {
         FlashLoanAttack attack = new FlashLoanAttack(flashLoanProvider, govToken, governor, mockTreasury);
+
+        // Fund the attack contract with fee amount so it can repay the flash loan
+        uint256 fee = attack.getAttackCost(FLASH_LOAN_AMOUNT);
+        deal(govToken, address(attack), fee);
+
         console.log("Executing attack...");
         bool success = false;
         uint256 stolenAmount = 0;
@@ -118,34 +129,22 @@ contract SimulateDefendedAttacks is Script {
 
     function _simulateWhaleManipulation(address govToken, address governor, address mockTreasury) internal {
         console.log("[2] Whale Manipulation");
-        WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
         GovernorWithDefenses gov = GovernorWithDefenses(payable(governor));
         address whale = msg.sender;
 
         GovernanceToken token = GovernanceToken(govToken);
-        uint256 deployerBalance = token.balanceOf(msg.sender);
-        if (deployerBalance == 0) {
-            results.push(
-                AttackResult({
-                    attackName: "Whale Manipulation",
-                    succeeded: false,
-                    amountExtracted: 0,
-                    details: "Skipped: sender has no governance tokens"
-                })
-            );
-            console.log("SKIP: Whale Manipulation (sender has no governance tokens)");
-            return;
-        }
+        deal(govToken, whale, 500_000_000e18);
+        console.log("Selected whale attacker:", whale);
 
-        uint256 whaleFunding = deployerBalance >= WHALE_TOKENS_TARGET ? WHALE_TOKENS_TARGET : deployerBalance;
+        vm.startPrank(whale);
+        WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
 
-        // If the broadcaster already holds tokens, no transfer is required.
-        if (whaleFunding < deployerBalance) {
-            require(token.transfer(whale, whaleFunding), "transfer to whale failed");
-        }
-        token.delegate(whale);
+        // Force delegate for the whale to ensure voting power is active
+        token.selfDelegate();
+        vm.roll(block.number + 1);
 
-        console.log("Created whale with voting power: ", whaleFunding);
+        // uint256 whaleFunding = WHALE_TOKENS_TARGET;
+        console.log("Created whale with voting power: ", token.getVotes(whale));
 
         uint256 proposalId = 0;
         try attack.createWhaleProposal(whale, WHALE_ATTACK_DRAIN) returns (uint256 id) {
@@ -156,9 +155,12 @@ contract SimulateDefendedAttacks is Script {
         console.log("Created whale proposal ID: ", proposalId);
 
         if (proposalId != 0) {
-            // Move from Pending to Active.
-            uint256 delay = gov.votingDelay();
-            if (delay > 0) vm.roll(block.number + delay + 1);
+            (, uint256 voteStart, uint256 voteEnd) = gov.proposalWindow(proposalId);
+
+            // Move to Active State by rolling exactly to voteStart (not past voteEnd).
+            if (block.number < voteStart) {
+                vm.roll(voteStart);
+            }
 
             // Whale votes directly on governor so voting weight is attributed correctly.
             try gov.castVote(proposalId, 1) returns (uint256 weight) {
@@ -168,8 +170,8 @@ contract SimulateDefendedAttacks is Script {
             }
 
             // Move beyond voting period so proposal can be evaluated/executed.
-            uint256 period = gov.votingPeriod();
-            if (period > 0) vm.roll(block.number + period + 1);
+            vm.roll(voteEnd + 1);
+            vm.warp(block.timestamp + 10 days); // Also warp time to satisfy any timelocks if present
         }
 
         bool success = false;
@@ -178,6 +180,7 @@ contract SimulateDefendedAttacks is Script {
         } catch {
             console.log("Whale execution blocked by defenses");
         }
+        vm.stopPrank();
 
         console.log("Attack execution result: ", success);
         uint256 stolenAmount = attack.getAmountStolen();
@@ -255,6 +258,20 @@ contract SimulateDefendedAttacks is Script {
         console.log("[5] Timelock Exploit");
         address timelock =
             vm.envExists("TIMELOCK_ADDRESS") ? vm.envAddress("TIMELOCK_ADDRESS") : vm.envAddress("TIMELOCK");
+
+        if (timelock == address(0)) {
+            console.log("No timelock configured, skipping attack.");
+            results.push(
+                AttackResult({
+                    attackName: "Timelock Exploit",
+                    succeeded: false,
+                    amountExtracted: 0,
+                    details: "Skipped - no timelock"
+                })
+            );
+            return;
+        }
+
         TimelockExploit attack = new TimelockExploit(governor, timelock, mockTreasury);
         console.log("Identifying timelock vulnerabilities...");
         uint256 delay = attack.identifyTimelockVulnerabilities();
@@ -263,7 +280,7 @@ contract SimulateDefendedAttacks is Script {
         bool success = false;
         bool succeeded = false;
         uint256 stolen = 0;
-        try attack.executeEmergencyFunctionBypass("emergencyWithdraw", 100_000e18) returns (bool res) {
+        try attack.executeEmergencyFunctionBypass("emergencyWithdraw()", 100_000e18) returns (bool res) {
             success = res;
             succeeded = attack.wasAttackSuccessful();
             stolen = attack.getAmountStolen();

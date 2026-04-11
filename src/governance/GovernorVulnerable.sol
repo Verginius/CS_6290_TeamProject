@@ -364,6 +364,14 @@ contract GovernorVulnerable {
         emit ProposalCanceled(proposalId);
     }
 
+    /**
+     * @notice VULN: A backdoor emergency withdraw function lacking proper access controls.
+     * Attackers can use this to bypass the timelock and governance entirely.
+     */
+    function emergencyWithdraw() external {
+        // No checks here, anyone can call it.
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // View helpers
     // ─────────────────────────────────────────────────────────────────────────

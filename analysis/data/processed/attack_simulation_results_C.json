@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "1775806973",
+    "timestamp": "1776670862",
     "chainId": 31337,
     "totalAttacks": 5
   },
@@ -19,26 +19,26 @@
     },
     {
       "name": "Proposal Spam",
-      "succeeded": false,
-      "amountExtracted": "0",
-      "details": "Created 0 spam proposals"
+      "succeeded": true,
+      "amountExtracted": "50",
+      "details": "Created 50 spam proposals"
     },
     {
       "name": "Quorum Manipulation",
-      "succeeded": false,
-      "amountExtracted": "0",
+      "succeeded": true,
+      "amountExtracted": "1000000000000000000000000",
       "details": "Timed attack during low-participation window (5%)"
     },
     {
       "name": "Timelock Exploit",
-      "succeeded": false,
-      "amountExtracted": "0",
+      "succeeded": true,
+      "amountExtracted": "100000000000000000000000",
       "details": "Attempted emergency function bypass"
     }
   ],
   "summary": {
-    "totalSuccessful": 0,
-    "successRate": 0,
-    "totalExtracted": "0"
+    "totalSuccessful": 3,
+    "successRate": 60,
+    "totalExtracted": "1100000000000000000000050"
   }
 }

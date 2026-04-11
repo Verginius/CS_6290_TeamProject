@@ -1,0 +1,44 @@
+{
+    "scenario": "attack_simulation_raw_A",
+    "target_dao": "Compound Finance",
+    "governance_token": "COMP",
+    "technical_framework": "Governor Bravo",
+    "attacks": [
+        {
+            "attackName": "Flash Loan Attack",
+            "status": "SUCCESS",
+            "isFlashLoanOrGovernanceTakeover": true,
+            "amountExtracted": 5000000000000000000000000,
+            "details": "Borrowed tokens, voted, executed proposal"
+        },
+        {
+            "attackName": "Whale Manipulation",
+            "status": "SUCCESS",
+            "isFlashLoanOrGovernanceTakeover": true,
+            "amountExtracted": 1000000000000000000000000,
+            "details": "Whale directly voted then executed self-serving proposal"
+        },
+        {
+            "attackName": "Proposal Spam",
+            "status": "SUCCESS",
+            "isFlashLoanOrGovernanceTakeover": false,
+            "amountExtracted": 50,
+            "details": "Created 50 spam proposals"
+        },
+        {
+            "attackName": "Quorum Manipulation",
+            "status": "SUCCESS",
+            "isFlashLoanOrGovernanceTakeover": true,
+            "amountExtracted": 1000000000000000000000000,
+            "details": "Timed attack during low-participation window (5%)"
+        },
+        {
+            "attackName": "Timelock Exploit",
+            "status": "FAILED",
+            "isFlashLoanOrGovernanceTakeover": false,
+            "amountExtracted": 0,
+            "details": "Skipped - no timelock"
+        }
+    ],
+    "overallSuccessRate": 80
+}
