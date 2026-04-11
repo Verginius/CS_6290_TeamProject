@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { DataService } from '../services/dataService';
+import { scriptRunner } from '../index';
 
 const router = Router();
 
@@ -40,6 +41,35 @@ router.get('/summary', (req, res) => {
         defended: defended || {},
     }
   });
+});
+
+// Start simulation
+router.post('/run', (req, res) => {
+  const { scenario, defenseEnabled } = req.body;
+  
+  if (scriptRunner.isRunning()) {
+    res.status(400).json({ error: 'Simulation already running' });
+    return;
+  }
+
+  scriptRunner.runSimulation(scenario, defenseEnabled);
+  res.json({ message: 'Simulation started', scenario: scenario || 'all', defenseEnabled: defenseEnabled || false });
+});
+
+// Stop simulation
+router.post('/stop', (req, res) => {
+  if (!scriptRunner.isRunning()) {
+    res.status(400).json({ error: 'No simulation running' });
+    return;
+  }
+
+  scriptRunner.stopSimulation();
+  res.json({ message: 'Simulation stopped' });
+});
+
+// Check simulation status
+router.get('/status', (req, res) => {
+  res.json({ isRunning: scriptRunner.isRunning() });
 });
 
 export default router;

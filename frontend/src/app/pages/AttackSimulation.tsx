@@ -221,7 +221,7 @@
 //   );
 // }
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Play, Pause, Square, Circle, Loader2 } from 'lucide-react';
 import { useAttackSimulation } from '../../hooks/useAttackSimulation';
@@ -233,6 +233,15 @@ export function AttackSimulation() {
 
   const { state, startSimulation, pauseSimulation, resetSimulation, updateConfig, loading, error } =
     useAttackSimulation(defenseEnabled, attackTypeParam);
+
+  // 自动切换 Defense 模式
+  useEffect(() => {
+    if (state.stage === 'attack' && defenseEnabled) {
+      setDefenseEnabled(false);
+    } else if (state.stage === 'defended' && !defenseEnabled) {
+      setDefenseEnabled(true);
+    }
+  }, [state.stage, defenseEnabled]);
 
   // 处理攻击类型变更
   const handleAttackTypeChange = (type: string) => {
@@ -311,7 +320,12 @@ export function AttackSimulation() {
 
       {/* Attack Visualization */}
       <div className="bg-card rounded-lg p-6 border border-border shadow-lg">
-        <h3 className="mb-6">Real-time Attack Visualization</h3>
+        <div className="flex items-center justify-between mb-6">
+          <h3>Real-time Attack Visualization</h3>
+          <div className={`px-3 py-1 rounded-full text-sm ${defenseEnabled ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'}`}>
+            {defenseEnabled ? '🛡️ With Defense' : '⚔️ No Defense'}
+          </div>
+        </div>
         <div className="relative h-64 bg-secondary/20 rounded-lg border border-border p-8">
           <div className="flex items-center justify-around h-full">
             {state.nodes.map((node) => (
@@ -327,14 +341,17 @@ export function AttackSimulation() {
                     }`}
                 >
                   <span className="text-2xl">
-                    {node.id === 'flashloan' && '⚡'}
                     {node.id === 'attacker' && '👤'}
                     {node.id === 'proposal' && '📝'}
                     {node.id === 'treasury' && '💰'}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">{node.label}</p>
-                <p className="text-xs font-mono">{node.balance}</p>
+                <p className="text-xs font-mono">
+                  {node.id === 'attacker' && state.isRunning 
+                    ? `${state.metrics.fundsTransferred} USDC` 
+                    : node.balance}
+                </p>
               </div>
             ))}
           </div>
@@ -342,48 +359,7 @@ export function AttackSimulation() {
       </div>
 
       {/* Info Cards Row */}
-      <div className="grid grid-cols-3 gap-6">
-        {/* Attack Config */}
-        <div className="bg-card rounded-lg p-6 border border-border shadow-lg">
-          <h3 className="mb-4 text-primary">Attack Configuration</h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">• Attack Type</span>
-              <select
-                value={state.config.attackType}
-                onChange={(e) => handleAttackTypeChange(e.target.value)}
-                className="bg-background border border-border rounded px-2 py-1"
-              >
-                <option value="flashloan">Flash Loan</option>
-                <option value="whale">Whale Manipulation</option>
-                <option value="spam">Proposal Spam</option>
-                <option value="quorum">Quorum Manipulation</option>
-                <option value="timelock">Timelock Exploit</option>
-              </select>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">• Target Contract</span>
-              <span className="font-mono text-xs">{state.config.targetContract.slice(0, 10)}...</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">• Initial Funds</span>
-              <span>{state.config.initialFunds} USDC</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">• Flash Loan Source</span>
-              <select
-                value={state.config.flashloanSource}
-                onChange={(e) => updateConfig({ flashloanSource: e.target.value as any })}
-                className="bg-background border border-border rounded px-2 py-1"
-              >
-                <option value="aave">Aave V3</option>
-                <option value="uniswap">Uniswap V3</option>
-                <option value="balancer">Balancer</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-2 gap-6">
         {/* Real-time Metrics */}
         <div className="bg-card rounded-lg p-6 border border-border shadow-lg">
           <h3 className="mb-4 text-warning">Real-time Metrics</h3>
