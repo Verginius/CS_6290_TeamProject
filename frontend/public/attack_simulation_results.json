@@ -1,0 +1,44 @@
+{
+  "metadata": {
+    "timestamp": "1776833968",
+    "chainId": 31337,
+    "totalAttacks": 5
+  },
+  "attacks": [
+    {
+      "name": "Flash Loan Attack",
+      "succeeded": true,
+      "amountExtracted": "5000000000000000000000000",
+      "details": "Borrowed tokens, voted, executed proposal"
+    },
+    {
+      "name": "Whale Manipulation",
+      "succeeded": true,
+      "amountExtracted": "1000000000000000000000000",
+      "details": "Whale directly voted then executed self-serving proposal"
+    },
+    {
+      "name": "Proposal Spam",
+      "succeeded": true,
+      "amountExtracted": "50",
+      "details": "Created 50 spam proposals"
+    },
+    {
+      "name": "Quorum Manipulation",
+      "succeeded": true,
+      "amountExtracted": "1000000000000000000000000",
+      "details": "Timed attack during low-participation window (5%)"
+    },
+    {
+      "name": "Timelock Exploit",
+      "succeeded": true,
+      "amountExtracted": "100000000000000000000000",
+      "details": "Attempted emergency function bypass"
+    }
+  ],
+  "summary": {
+    "totalSuccessful": 5,
+    "successRate": 100,
+    "totalExtracted": "7100000000000000000000050"
+  }
+}

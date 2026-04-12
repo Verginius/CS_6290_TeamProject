@@ -5,10 +5,10 @@ Script ran successfully.
   [GOVERNANCE ATTACK SIMULATIONS]
   Starting attack simulations...
   Using contract addresses:
-    Gov Token:  0x3aD2306eDfBe72ce013cdb6b429212d9CdDE4F96
-    Governor:  0x757Fd23a0fDF9F9d2786f62f96f02Db4D096d10A
-    Mock Treasury:  0xaE13506dEAe7F82EA5c1c646d0b6693b220A4BB8
-    Flash Loan Provider:  0x934A389CaBFB84cdB3f0260B2a4FD575b8B345A3
+    Gov Token:  0xb868Cc77A95a65F42611724AF05Aa2d3B6Ec05F2
+    Governor:  0x9338CA7d556248055f5751d85cDA7aD6eF254433
+    Mock Treasury:  0xDf951d2061b12922BFbF22cb17B17f3b39183570
+    Flash Loan Provider:  0x975Ab64F4901Af5f0C96636deA0b9de3419D0c2F
   [1] Flash Loan Attack
   Executing attack...
   Attack execution result:  false

@@ -1,5 +1,9 @@
 import { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
+
+import { useEffect, useState } from 'react';
+import { getChainInfo } from '../../lib/chain';
+
 import { 
   Home, 
   Zap, 
@@ -17,6 +21,20 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
+  const [blockNumber, setBlockNumber] = useState(0);
+  const [connected, setConnected] = useState(false);
+  useEffect(() => {
+  const fetchData = async () => {
+    const data = await getChainInfo();
+    setBlockNumber(data.blockNumber);
+    setConnected(data.connected);
+  };
+
+  fetchData();
+
+  const interval = setInterval(fetchData, 3000); // 每3秒更新
+  return () => clearInterval(interval);
+}, []);
   const navItems = [
     { path: '/', icon: Home, label: 'Overview' },
     { path: '/attack', icon: Zap, label: 'Attack Simulation' },
@@ -65,12 +83,19 @@ export function Layout({ children }: LayoutProps) {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground text-sm">Block Height:</span>
-              <span className="font-mono">#18,923,423</span>
+              <span className="font-mono">
+                {blockNumber ? `#${blockNumber.toLocaleString()}` : '—'}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground text-sm">Status:</span>
-              <Circle className="w-2 h-2 fill-success text-success" />
-              <span className="text-success text-sm">Connected</span>
+              <Circle
+                className={`w-2 h-2 ${
+                  connected ? 'fill-success text-success' : 'fill-destructive text-destructive'
+                }`}/>
+              <span className={connected ? 'text-success text-sm' : 'text-destructive text-sm'}>
+                {connected ? 'Connected' : 'Disconnected'}
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2 cursor-pointer hover:bg-secondary px-3 py-2 rounded-lg">

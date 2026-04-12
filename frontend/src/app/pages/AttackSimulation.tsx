@@ -236,7 +236,16 @@ export function AttackSimulation() {
   const currentScenario = SCENARIOS[selectedScenarioKey] || SCENARIOS.default;
 
   const { state, startSimulation, pauseSimulation, resetSimulation, updateConfig, loading, error } =
-    useAttackSimulation(defenseEnabled, attackTypeParam, currentScenario.addresses);
+    useAttackSimulation(defenseEnabled, attackTypeParam, selectedScenarioKey);
+  
+  useEffect(() => {
+  if (state.metrics.attackCost !== '0' && state.metrics.gasUsed !== '0') {
+    localStorage.setItem('last_attack_metrics', JSON.stringify({
+      attackCost: state.metrics.attackCost,
+      gasUsed: state.metrics.gasUsed,
+        }));
+      }
+    }, [state.metrics]);
 
   // 自动切换 Defense 模式
   useEffect(() => {
