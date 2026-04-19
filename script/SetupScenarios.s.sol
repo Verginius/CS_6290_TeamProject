@@ -10,6 +10,7 @@ import {GovernorVulnerable, ITokenVotes as ITokenVotesVulnerable} from "../src/g
 import {GovernorWithDefenses, ITokenVotes as ITokenVotesDefenses} from "../src/governance/GovernorWithDefenses.sol";
 import {Timelock as GovernanceTimelock} from "../src/governance/Timelock.sol";
 import {TimeBasedDefenseConfig} from "../src/defenses/TimeBasedDefense.sol";
+import {DaoConfig} from "./DaoConfig.sol";
 
 // Mock Contracts
 import {MockTreasury} from "../src/mocks/MockTreasury.sol";
@@ -20,9 +21,11 @@ import {StdCheats} from "forge-std/StdCheats.sol";
  * @dev Foundry script to create predefined test scenarios
  */
 contract SetupScenarios is Script, StdCheats {
-    uint256 private constant TOTAL_SUPPLY = 1_000_000_000e18;
+    uint256 public totalSupply;
     uint256 private constant VOTING_DELAY = 1;
     uint256 private constant VOTING_PERIOD = 50_400;
+
+    DaoConfig.DaoParameters private daoParams;
 
     struct ScenarioConfig {
         string name;
@@ -51,6 +54,18 @@ contract SetupScenarios is Script, StdCheats {
         console.log("[SETTING UP GOVERNANCE TEST SCENARIOS]");
 
         string memory scenarioSelect = vm.envExists("SCENARIO") ? vm.envString("SCENARIO") : "A";
+        string memory daoSelect = vm.envExists("TARGET_DAO") ? vm.envString("TARGET_DAO") : "COMPOUND";
+        
+        DaoConfig.DaoType daoType = DaoConfig.fromString(daoSelect);
+        daoParams = DaoConfig.getParameters(daoType);
+        totalSupply = daoParams.totalSupply;
+
+        console.log("Target DAO: ", daoParams.name);
+        console.log("Total Supply: ", totalSupply);
+        console.log("Proposal Threshold (bps): ", daoParams.proposalThresholdBps);
+        console.log("Quorum (bps): ", daoParams.quorumBps);
+        console.log("");
+
         _selectScenario(scenarioSelect);
 
         console.log("Selected Scenario: ", selectedScenario.name);
@@ -136,7 +151,7 @@ contract SetupScenarios is Script, StdCheats {
     function _deployGovernanceContracts() internal {
         address admin = msg.sender;
 
-        GovernanceToken token = new GovernanceToken("Governance Token", "GOV", admin, TOTAL_SUPPLY);
+        GovernanceToken token = new GovernanceToken(daoParams.name, daoParams.name, admin, totalSupply);
 
         deployedContracts.govToken = address(token);
         console.log("PASS: Governance Token deployed at:", address(token));
@@ -148,8 +163,7 @@ contract SetupScenarios is Script, StdCheats {
             address[] memory executors = new address[](1);
             executors[0] = address(0);
 
-            GovernanceTimelock timelock =
-                new GovernanceTimelock(selectedScenario.timelockDelay, proposers, executors, admin);
+            GovernanceTimelock timelock = new GovernanceTimelock(selectedScenario.timelockDelay, proposers, executors, admin);
 
             deployedContracts.timelock = address(timelock);
             console.log("PASS: Timelock deployed at:", address(timelock));
@@ -157,27 +171,40 @@ contract SetupScenarios is Script, StdCheats {
             deployedContracts.timelock = address(0);
         }
 
+        uint256 scenarioThreshold = (totalSupply * selectedScenario.proposalThreshold) / 10000;
+        uint256 scenarioQuorum = (totalSupply * selectedScenario.quorumPercentage) / 10000;
+
         GovernorVulnerable govVuln = new GovernorVulnerable(
-            "Governor Vulnerable",
+            daoParams.name,
             ITokenVotesVulnerable(address(token)),
-            0, // 0 delay enables flash loan testing
-            0, // 0 period enables flash loan testing
-            selectedScenario.proposalThreshold,
-            selectedScenario.quorumPercentage
+            daoParams.votingDelay,
+            daoParams.votingPeriod,
+            scenarioThreshold,
+            scenarioQuorum
         );
 
         deployedContracts.governorVulnerable = address(govVuln);
         console.log("PASS: Vulnerable Governor deployed at:", address(govVuln));
 
         if (selectedScenario.hasTimelock) {
+            uint256 thresholdBps = selectedScenario.proposalThreshold > 0 
+                ? (scenarioThreshold * 10000) / totalSupply 
+                : 0;
+            uint256 quorumBps = selectedScenario.quorumPercentage > 0 
+                ? (scenarioQuorum * 10000) / totalSupply 
+                : daoParams.quorumBps;
+
+            if (quorumBps > 10_000) quorumBps = daoParams.quorumBps;
+            if (thresholdBps > 10_000) thresholdBps = daoParams.proposalThresholdBps;
+
             GovernorWithDefenses govDef = new GovernorWithDefenses(
-                "Governor With Defenses",
+                daoParams.name,
                 ITokenVotesDefenses(address(token)),
                 GovernanceTimelock(payable(deployedContracts.timelock)),
-                VOTING_DELAY,
-                VOTING_PERIOD,
-                selectedScenario.proposalThreshold,
-                selectedScenario.quorumPercentage
+                daoParams.votingDelay,
+                daoParams.votingPeriod,
+                thresholdBps,
+                quorumBps
             );
 
             deployedContracts.governorDefended = address(govDef);
@@ -196,7 +223,7 @@ contract SetupScenarios is Script, StdCheats {
 
         if (_stringsEqual(selectedScenario.tokenDistribution, "whale")) {
             address whale = address(0xDEADBEEF);
-            uint256 whaleAmount = (TOTAL_SUPPLY * 60) / 100;
+            uint256 whaleAmount = (totalSupply * 60) / 100;
             require(token.transfer(whale, whaleAmount), "transfer whale failed");
             console.log("  Whale receives:", whaleAmount / 1e18, "tokens (60%)");
         } else if (_stringsEqual(selectedScenario.tokenDistribution, "top3")) {
@@ -205,9 +232,9 @@ contract SetupScenarios is Script, StdCheats {
             whales[1] = address(0x0002);
             whales[2] = address(0x0003);
 
-            uint256 whale1Amount = (TOTAL_SUPPLY * 27) / 100;
-            uint256 whale2Amount = (TOTAL_SUPPLY * 27) / 100;
-            uint256 whale3Amount = (TOTAL_SUPPLY * 26) / 100;
+            uint256 whale1Amount = (totalSupply * 27) / 100;
+            uint256 whale2Amount = (totalSupply * 27) / 100;
+            uint256 whale3Amount = (totalSupply * 26) / 100;
 
             require(token.transfer(whales[0], whale1Amount), "transfer whale1 failed");
             require(token.transfer(whales[1], whale2Amount), "transfer whale2 failed");
@@ -217,7 +244,7 @@ contract SetupScenarios is Script, StdCheats {
             console.log("  Whale 2:", whale2Amount / 1e18, "tokens (27%)");
             console.log("  Whale 3:", whale3Amount / 1e18, "tokens (26%)");
         } else if (_stringsEqual(selectedScenario.tokenDistribution, "distributed")) {
-            uint256 amountPerAddress = TOTAL_SUPPLY / 100;
+            uint256 amountPerAddress = totalSupply / 100;
 
             for (uint256 i = 0; i < 100; i++) {
                 // casting to 'uint160' is safe because generated addresses use small bounded constants
@@ -228,7 +255,7 @@ contract SetupScenarios is Script, StdCheats {
 
             console.log("  100 addresses receive:", amountPerAddress / 1e18, "tokens each");
         } else if (_stringsEqual(selectedScenario.tokenDistribution, "gaussian")) {
-            uint256 avgAmount = TOTAL_SUPPLY / 50;
+            uint256 avgAmount = totalSupply / 50;
 
             for (uint256 i = 0; i < 50; i++) {
                 // casting to 'uint160' is safe because generated addresses use small bounded constants
@@ -253,7 +280,7 @@ contract SetupScenarios is Script, StdCheats {
 
             console.log("  50 addresses with Gaussian distribution");
         } else if (_stringsEqual(selectedScenario.tokenDistribution, "equal")) {
-            uint256 amountPerAddress = TOTAL_SUPPLY / 1000;
+            uint256 amountPerAddress = totalSupply / 1000;
 
             console.log("  1000 addresses ready to receive:", amountPerAddress / 1e18, "tokens each");
             console.log("  (Minting to 1000 addresses batched to save gas)");
@@ -273,7 +300,7 @@ contract SetupScenarios is Script, StdCheats {
         address[] memory signers = new address[](1);
         signers[0] = msg.sender;
 
-        MockTreasury treasury = new MockTreasury(signers, 1, TOTAL_SUPPLY / 2);
+        MockTreasury treasury = new MockTreasury(signers, 1, totalSupply / 2);
         deployedContracts.mockTreasury = address(treasury);
 
         treasury.addSigner(deployedContracts.governorVulnerable);
@@ -284,7 +311,7 @@ contract SetupScenarios is Script, StdCheats {
         console.log("PASS: Mock Treasury deployed at:", address(treasury));
 
         GovernanceToken token = GovernanceToken(deployedContracts.govToken);
-        uint256 targetTreasuryFunds = TOTAL_SUPPLY / 10;
+        uint256 targetTreasuryFunds = totalSupply / 10;
         uint256 available = token.balanceOf(msg.sender);
         uint256 treasuryFunds = available < targetTreasuryFunds ? available : targetTreasuryFunds;
 
